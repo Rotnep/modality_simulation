@@ -308,9 +308,93 @@
           </div>
         </div>
 
-        <!-- Diathermy Specific Controls (PSWD / Towel) -->
+        <!-- Diathermy Specific Controls (Exact Clinical Dosage Table & Towel) -->
         <div id="diathermyControlsSection" class="hidden space-y-3 pt-1">
-          <div class="flex items-center justify-between text-xs">
+          <!-- Exact Clinical Diathermy Dosage Table (SWD & MWD) -->
+          <div class="bg-slate-950/80 rounded-xl p-3 border border-slate-800 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                <i data-lucide="table" class="w-3.5 h-3.5 text-amber-400"></i>
+                Clinical Diathermy Dosage (SWD & MWD)
+              </span>
+              <span class="text-[10px] font-mono-code text-slate-400">Standard PT Dosimetry</span>
+            </div>
+
+            <!-- Quick Dosage Selection Buttons -->
+            <div class="grid grid-cols-4 gap-1.5 text-[11px] font-mono-code">
+              <button type="button" id="btnDose1" class="py-1 px-1 rounded-lg border border-slate-700 bg-slate-900 hover:border-sky-500 text-slate-300 text-center transition">
+                <span class="font-bold block text-sky-400 text-xs">Dose I</span>
+                <span class="text-[9px] text-slate-400">&lt; 38 W</span>
+              </button>
+              <button type="button" id="btnDose2" class="py-1 px-1 rounded-lg border border-slate-700 bg-slate-900 hover:border-emerald-500 text-slate-300 text-center transition">
+                <span class="font-bold block text-emerald-400 text-xs">Dose II</span>
+                <span class="text-[9px] text-slate-400">38 - &lt;80 W</span>
+              </button>
+              <button type="button" id="btnDose3" class="py-1 px-1 rounded-lg border border-amber-500/60 bg-amber-950/30 text-slate-300 text-center transition">
+                <span class="font-bold block text-amber-400 text-xs">Dose III</span>
+                <span class="text-[9px] text-slate-400">80 - 300 W</span>
+              </button>
+              <button type="button" id="btnDose4" class="py-1 px-1 rounded-lg border border-slate-700 bg-slate-900 hover:border-rose-500 text-slate-300 text-center transition">
+                <span class="font-bold block text-rose-400 text-xs">Dose IV</span>
+                <span class="text-[9px] text-slate-400">&gt; 300 W</span>
+              </button>
+            </div>
+
+            <!-- Exact Clinical Table from User Specification -->
+            <div class="overflow-x-auto rounded-lg border border-slate-800 shadow-inner">
+              <table class="w-full text-[11px] text-left border-collapse">
+                <thead>
+                  <tr class="bg-slate-900 text-slate-400 font-semibold border-b border-slate-800">
+                    <th class="py-1.5 px-2.5">Dosage</th>
+                    <th class="py-1.5 px-2.5">Intensity (Watts)</th>
+                    <th class="py-1.5 px-2.5">Sensation</th>
+                    <th class="py-1.5 px-2.5">Phase of inflammation</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 font-sans">
+                  <tr id="rowDose1" class="cursor-pointer hover:bg-slate-800/50 transition">
+                    <td class="py-1.5 px-2.5 font-bold font-mono-code text-sky-400">I</td>
+                    <td class="py-1.5 px-2.5 font-mono-code text-slate-300">&lt; 38</td>
+                    <td class="py-1.5 px-2.5 text-slate-300">No sensation of warmth</td>
+                    <td class="py-1.5 px-2.5 text-sky-300 font-medium">Acute</td>
+                  </tr>
+                  <tr id="rowDose2" class="cursor-pointer hover:bg-slate-800/50 transition">
+                    <td class="py-1.5 px-2.5 font-bold font-mono-code text-emerald-400">II</td>
+                    <td class="py-1.5 px-2.5 font-mono-code text-slate-300">38 - &lt;80</td>
+                    <td class="py-1.5 px-2.5 text-slate-300">Mild gentle warmth</td>
+                    <td class="py-1.5 px-2.5 text-emerald-300 font-medium">Sub-acute</td>
+                  </tr>
+                  <tr id="rowDose3" class="cursor-pointer bg-amber-950/20 hover:bg-slate-800/50 transition">
+                    <td class="py-1.5 px-2.5 font-bold font-mono-code text-amber-400">III</td>
+                    <td class="py-1.5 px-2.5 font-mono-code text-slate-300">80 - 300</td>
+                    <td class="py-1.5 px-2.5 text-slate-300">Moderate or comfortable warmth</td>
+                    <td class="py-1.5 px-2.5 text-amber-300 font-medium">Chronic</td>
+                  </tr>
+                  <tr id="rowDose4" class="cursor-pointer hover:bg-slate-800/50 transition">
+                    <td class="py-1.5 px-2.5 font-bold font-mono-code text-rose-400">IV</td>
+                    <td class="py-1.5 px-2.5 font-mono-code text-slate-300">&gt; 300</td>
+                    <td class="py-1.5 px-2.5 text-rose-300 font-medium">Vigorous heating with painthreshold or burn</td>
+                    <td class="py-1.5 px-2.5 text-rose-400 text-[10px] font-semibold">Burn Risk / Vigorous</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Active Diathermy Sensation & Clinical Indication Box -->
+            <div id="diathermySensationBox" class="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 text-[11px] flex items-center justify-between">
+              <div>
+                <span class="text-slate-400 block text-[10px]">Patient Sensation:</span>
+                <span id="activeDoseSensation" class="font-semibold text-amber-300">Moderate or comfortable warmth</span>
+              </div>
+              <div class="text-right">
+                <span class="text-slate-400 block text-[10px]">Phase of Inflammation:</span>
+                <span id="activeDosePhase" class="font-mono-code font-bold text-amber-400">Chronic</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Towel Spacing & Perspiration Control -->
+          <div class="flex items-center justify-between text-xs pt-1">
             <span class="text-slate-300 flex items-center gap-1">
               <i data-lucide="layers" class="w-3.5 h-3.5 text-amber-400"></i> Towel Spacing & Perspiration:
             </span>
@@ -794,6 +878,24 @@
             <li><strong>Hazardous (&gt;43°C - 45°C):</strong> Cutaneous thermal pain, epidermal blistering, cellular protein denaturation, and tissue burn.</li>
           </ul>
         </div>
+
+        <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-amber-300 text-sm mb-1">5. Clinical Diathermy Dosimetry Rules (SWD & MWD)</h4>
+          <p class="mb-2">Physical therapy diathermy prescribes power by patient perception and stage of tissue healing:</p>
+          <div class="overflow-x-auto rounded border border-slate-800 text-[10px]">
+            <table class="w-full text-left">
+              <thead class="bg-slate-900 text-slate-400 font-semibold border-b border-slate-800">
+                <tr><th class="p-1.5">Dosage</th><th class="p-1.5">Intensity (Watts)</th><th class="p-1.5">Sensation</th><th class="p-1.5">Phase of Inflammation</th></tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/60">
+                <tr><td class="p-1.5 font-bold text-sky-400">I</td><td class="p-1.5 font-mono-code">&lt; 38</td><td class="p-1.5">No sensation of warmth</td><td class="p-1.5 text-sky-300">Acute</td></tr>
+                <tr><td class="p-1.5 font-bold text-emerald-400">II</td><td class="p-1.5 font-mono-code">38 - &lt;80</td><td class="p-1.5">Mild gentle warmth</td><td class="p-1.5 text-emerald-300">Sub-acute</td></tr>
+                <tr><td class="p-1.5 font-bold text-amber-400">III</td><td class="p-1.5 font-mono-code">80 - 300</td><td class="p-1.5">Moderate or comfortable warmth</td><td class="p-1.5 text-amber-300">Chronic</td></tr>
+                <tr><td class="p-1.5 font-bold text-rose-400">IV</td><td class="p-1.5 font-mono-code">&gt; 300</td><td class="p-1.5 text-rose-300 font-medium">Vigorous heating with painthreshold or burn</td><td class="p-1.5 text-rose-400 font-semibold">Burn Risk</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
       <div class="p-3 border-t border-slate-800 bg-slate-950/80 flex justify-end">
         <button id="dismissGuideBtn" class="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs rounded-lg transition">
@@ -1024,14 +1126,15 @@
         diaSection.classList.remove("hidden");
         intLabel.textContent = "Diathermy Power Output (Watts)";
         intensitySlider.min = "10";
-        intensitySlider.max = "180";
+        intensitySlider.max = "380";
         intensitySlider.step = "5";
-        if (intensityValue < 10) intensityValue = 60;
+        if (intensityValue < 10 || intensityValue > 380) intensityValue = 120;
         intensitySlider.value = intensityValue;
-        intMinLabel.textContent = "10W (Dose I)";
-        intMidLabel.textContent = "60W (Dose III)";
-        intMaxLabel.textContent = "150W (Dose IV)";
+        intMinLabel.textContent = "Dose I (< 38W)";
+        intMidLabel.textContent = "Dose II & III (38 - 300W)";
+        intMaxLabel.textContent = "Dose IV (> 300W Burn)";
         acousticPowerOutput.classList.add("hidden");
+        updateDiathermyDosimetryUI(intensityValue);
       }
 
       updateModalityHeadings();
@@ -1197,10 +1300,116 @@
         const totalW = (intensityValue * 5.0).toFixed(1);
         totalPowerWatts.textContent = `Total Power: ${totalW} Watts`;
       } else {
-        const category = intensityValue <= 25 ? "Dose I (Sub-thermal)" : intensityValue <= 50 ? "Dose II (Low Heat)" : intensityValue <= 100 ? "Dose III (Medium Heat)" : "Dose IV (Vigorous)";
-        intensityValText.textContent = `${intensityValue.toFixed(0)} Watts (${category})`;
+        updateDiathermyDosimetryUI(intensityValue);
       }
       updateThermalCalculations();
+    });
+
+    /* Diathermy Clinical Dosage Mapping & UI Synchronization */
+    function updateDiathermyDosimetryUI(watts) {
+      let dose = "I";
+      let sensation = "No sensation of warmth";
+      let phase = "Acute";
+      let colorClass = "text-sky-400";
+      let rowId = "rowDose1";
+      let btnId = "btnDose1";
+
+      if (watts < 38) {
+        dose = "I";
+        sensation = "No sensation of warmth";
+        phase = "Acute";
+        colorClass = "text-sky-400";
+        rowId = "rowDose1";
+        btnId = "btnDose1";
+      } else if (watts < 80) {
+        dose = "II";
+        sensation = "Mild gentle warmth";
+        phase = "Sub-acute";
+        colorClass = "text-emerald-400";
+        rowId = "rowDose2";
+        btnId = "btnDose2";
+      } else if (watts <= 300) {
+        dose = "III";
+        sensation = "Moderate or comfortable warmth";
+        phase = "Chronic";
+        colorClass = "text-amber-400";
+        rowId = "rowDose3";
+        btnId = "btnDose3";
+      } else {
+        dose = "IV";
+        sensation = "Vigorous heating with painthreshold or burn";
+        phase = "Burn Hazard / Vigorous";
+        colorClass = "text-rose-400 font-bold animate-pulse";
+        rowId = "rowDose4";
+        btnId = "btnDose4";
+      }
+
+      intensityValText.innerHTML = `${watts.toFixed(0)} Watts &bull; <span class="${colorClass}">Dose ${dose} (${phase})</span>`;
+
+      const activeDoseSensation = document.getElementById("activeDoseSensation");
+      const activeDosePhase = document.getElementById("activeDosePhase");
+      if (activeDoseSensation) activeDoseSensation.textContent = sensation;
+      if (activeDosePhase) {
+        activeDosePhase.textContent = phase;
+        activeDosePhase.className = `font-mono-code font-bold ${colorClass}`;
+      }
+
+      // Highlight active row in dosage table
+      ["rowDose1", "rowDose2", "rowDose3", "rowDose4"].forEach(id => {
+        const row = document.getElementById(id);
+        if (row) {
+          if (id === rowId) {
+            row.className = id === "rowDose4" 
+              ? "cursor-pointer bg-rose-950/40 border-l-4 border-rose-500 font-semibold"
+              : id === "rowDose3"
+              ? "cursor-pointer bg-amber-950/40 border-l-4 border-amber-500 font-semibold"
+              : id === "rowDose2"
+              ? "cursor-pointer bg-emerald-950/40 border-l-4 border-emerald-500 font-semibold"
+              : "cursor-pointer bg-sky-950/40 border-l-4 border-sky-500 font-semibold";
+          } else {
+            row.className = "cursor-pointer hover:bg-slate-800/40 border-l-4 border-transparent transition";
+          }
+        }
+      });
+
+      // Highlight active quick button
+      ["btnDose1", "btnDose2", "btnDose3", "btnDose4"].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+          if (id === btnId) {
+            btn.className = id === "btnDose4"
+              ? "py-1 px-1 rounded-lg border border-rose-500 bg-rose-950/60 text-white font-bold shadow-md shadow-rose-900/40"
+              : id === "btnDose3"
+              ? "py-1 px-1 rounded-lg border border-amber-500 bg-amber-950/60 text-white font-bold shadow-md shadow-amber-900/40"
+              : id === "btnDose2"
+              ? "py-1 px-1 rounded-lg border border-emerald-500 bg-emerald-950/60 text-white font-bold shadow-md shadow-emerald-900/40"
+              : "py-1 px-1 rounded-lg border border-sky-500 bg-sky-950/60 text-white font-bold shadow-md shadow-sky-900/40";
+          } else {
+            btn.className = "py-1 px-1 rounded-lg border border-slate-700 bg-slate-900 hover:border-slate-600 text-slate-300 text-center transition";
+          }
+        }
+      });
+    }
+
+    /* Diathermy Quick Dosage Button & Row Click Handlers */
+    const diathermyDoseConfigs = [
+      { btnId: "btnDose1", rowId: "rowDose1", watts: 25 },
+      { btnId: "btnDose2", rowId: "rowDose2", watts: 55 },
+      { btnId: "btnDose3", rowId: "rowDose3", watts: 150 },
+      { btnId: "btnDose4", rowId: "rowDose4", watts: 330 }
+    ];
+
+    diathermyDoseConfigs.forEach(cfg => {
+      const btn = document.getElementById(cfg.btnId);
+      const row = document.getElementById(cfg.rowId);
+      const setDose = () => {
+        intensityValue = cfg.watts;
+        intensitySlider.value = cfg.watts;
+        updateDiathermyDosimetryUI(cfg.watts);
+        updateThermalCalculations();
+      };
+      if (btn) btn.addEventListener("click", setDose);
+      if (row) row.addEventListener("click", setDose);
     });
 
     /* Treatment Time Duration & Timer Controls */
@@ -1328,20 +1537,20 @@
         timeSlider.value = 5;
         timeSlider.dispatchEvent(new Event("input"));
       } else if (preset === "preset_swd_muscle") {
-        // SWD inductive
+        // SWD inductive (Dose III: 80 - 300W for Chronic Spasm)
         document.querySelector("[data-modality='swd_inductive']").click();
         btnDuty100.click();
-        intensitySlider.value = 80;
+        intensitySlider.value = 150;
         intensitySlider.dispatchEvent(new Event("input"));
         timeSlider.value = 12;
         timeSlider.dispatchEvent(new Event("input"));
       } else if (preset === "preset_swd_fat_burn") {
-        // Capacitive SWD with thick fat
+        // Capacitive SWD with thick fat (Dose IV: > 300W Burn Hazard)
         document.querySelector("[data-modality='swd_capacitive']").click();
         fatSlider.value = 26;
         fatSlider.dispatchEvent(new Event("input"));
         btnDuty100.click();
-        intensitySlider.value = 110;
+        intensitySlider.value = 325;
         intensitySlider.dispatchEvent(new Event("input"));
         timeSlider.value = 10;
         timeSlider.dispatchEvent(new Event("input"));
@@ -1573,7 +1782,22 @@
         powerFactor = (intensityValue / 1.5) * couplingFactor;
       } else {
         const towelRiskFactor = towelCondition === "sweat" ? 1.4 : 1.0;
-        powerFactor = (intensityValue / 60.0) * towelRiskFactor;
+        // Calibrate diathermy powerFactor according to the exact clinical dosage table:
+        // Dose I (< 38 W): Delta T < 1°C (No sensation of warmth, acute)
+        // Dose II (38 - <80 W): Delta T 1.0 - 2.0°C (Mild gentle warmth, sub-acute)
+        // Dose III (80 - 300 W): Delta T 2.2 - 4.2°C (Moderate or comfortable warmth, chronic)
+        // Dose IV (> 300 W): Delta T > 4.5 - 7.5°C (Vigorous heating with painthreshold or burn)
+        let baseDoseFactor = 0.5;
+        if (intensityValue < 38) {
+          baseDoseFactor = 0.05 + (intensityValue / 38.0) * 0.14; // Delta T ~ 0.3 - 0.8 °C
+        } else if (intensityValue < 80) {
+          baseDoseFactor = 0.22 + ((intensityValue - 38.0) / 42.0) * 0.20; // Delta T ~ 1.0 - 1.9 °C
+        } else if (intensityValue <= 300) {
+          baseDoseFactor = 0.48 + ((intensityValue - 80.0) / 220.0) * 0.45; // Delta T ~ 2.2 - 4.2 °C
+        } else {
+          baseDoseFactor = 1.05 + ((intensityValue - 300.0) / 80.0) * 0.65; // Delta T > 4.5 - 7.5 °C (Hazard)
+        }
+        powerFactor = baseDoseFactor * towelRiskFactor;
       }
 
       // Transducer movement factor
@@ -1749,6 +1973,11 @@
         hazard = {
           msg: "PERSPIRATION SCALD RISK: Moisture in SWD field concentrates electric lines, creating focal scalding water hot spots.",
           action: "Apply Dry Toweling to Absorb Perspiration"
+        };
+      } else if (intensityValue > 300 && (currentModalityKey.startsWith("swd_") || currentModalityKey === "mwd")) {
+        hazard = {
+          msg: "DIATHERMY DOSE IV HAZARD: Power > 300 Watts! Vigorous heating exceeding patient pain threshold with acute tissue burn danger.",
+          action: "Immediately reduce power to Dose II (38-80W) or Dose III (80-300W)"
         };
       }
 
