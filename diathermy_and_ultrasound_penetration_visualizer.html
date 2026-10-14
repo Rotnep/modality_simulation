@@ -526,6 +526,10 @@
               <span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
               <span class="text-slate-400 text-[11px]">Energy Wavefront</span>
             </div>
+            <button id="toggleScaleModeBtn" class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition" title="Toggle Scale Position">
+              <i data-lucide="ruler" class="w-3.5 h-3.5 text-sky-400"></i>
+              <span id="scaleBtnText">Scale: Active</span>
+            </button>
             <button id="togglePlayBtn" class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
               <i data-lucide="pause" id="playIcon" class="w-3.5 h-3.5"></i>
               <span id="playText">Pause</span>
@@ -536,15 +540,6 @@
         <!-- Interactive Canvas Viewport -->
         <div class="relative w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-inner group select-none">
           <canvas id="simCanvas" class="w-full h-[380px] sm:h-[420px] block cursor-crosshair"></canvas>
-
-          <!-- Floating Depth Legend (Left overlay) -->
-          <div class="absolute left-2 top-3 bottom-3 flex flex-col justify-between pointer-events-none text-[10px] font-mono-code text-slate-400 bg-slate-950/85 px-1.5 py-1 rounded border border-slate-800/80 backdrop-blur-sm z-20">
-            <span>0cm (Skin)</span>
-            <span id="overlayFatMarker">1.2cm (Fat)</span>
-            <span>3.5cm (Muscle)</span>
-            <span>5.0cm (Capsule)</span>
-            <span>6.5cm+ (Bone)</span>
-          </div>
 
           <!-- Interactive Hover Inspector Pill -->
           <div id="canvasTooltip" class="absolute pointer-events-none opacity-0 transition-opacity bg-slate-900/95 border border-sky-500/50 text-slate-100 text-[11px] p-2.5 rounded-xl shadow-2xl backdrop-blur-md min-w-[170px] z-30">
@@ -567,6 +562,35 @@
               <span>PERIOSTEAL HOT SPOT / BONE BURN</span>
             </span>
             <span class="text-[10px] font-mono-code bg-rose-900 px-1.5 py-0.5 rounded text-rose-300">Stationary Warning</span>
+          </div>
+        </div>
+
+        <!-- Horizontal Anatomical Depth Ruler (Positioned Beside / Below Visual) -->
+        <div id="depthRulerContainer" class="mt-2.5 px-3 py-2 bg-slate-950/75 rounded-xl border border-slate-800/80 flex flex-col gap-1.5 select-none transition-all">
+          <div class="flex items-center justify-between text-[11px] font-mono-code text-slate-400">
+            <span class="flex items-center gap-1.5 text-slate-200 font-semibold">
+              <i data-lucide="ruler" class="w-3.5 h-3.5 text-sky-400"></i>
+              <span>Anatomical Depth Scale (X-Axis):</span>
+            </span>
+            <span class="text-slate-400 text-[10px]">0.0 cm (Skin Surface) &rarr; 8.0 cm (Cortical Bone)</span>
+          </div>
+
+          <!-- Color-coded Depth Scale Segments (Proportional to layers) -->
+          <div id="rulerBar" class="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden flex text-[8px] font-mono-code text-slate-900 font-bold">
+            <div id="rulerSkinSegment" class="bg-amber-800/90 h-full flex items-center justify-center text-white" style="width: 2.5%;"></div>
+            <div id="rulerFatSegment" class="bg-amber-400 h-full flex items-center justify-center text-amber-950" style="width: 15%;">Fat</div>
+            <div id="rulerMuscleSegment" class="bg-rose-500 h-full flex items-center justify-center text-white" style="width: 43.75%;">Muscle Belly</div>
+            <div id="rulerCapsuleSegment" class="bg-cyan-400 h-full flex items-center justify-center text-cyan-950" style="width: 15%;">Capsule</div>
+            <div id="rulerBoneSegment" class="bg-slate-300 h-full flex items-center justify-center text-slate-900" style="width: 23.75%;">Bone</div>
+          </div>
+
+          <!-- Scale Tick Labels (Beside / Below Visual) -->
+          <div class="flex justify-between items-center text-[10px] font-mono-code pt-0.5 text-slate-400">
+            <span class="text-slate-300">0.0 cm (Skin)</span>
+            <span id="scaleFatMarker" class="text-amber-400 font-medium">~1.4 cm (Fat)</span>
+            <span id="scaleMuscleMarker" class="text-rose-400 font-medium">~4.9 cm (Muscle)</span>
+            <span id="scaleCapsuleMarker" class="text-cyan-400 font-medium">~6.1 cm (Capsule)</span>
+            <span id="scaleBoneMarker" class="text-slate-300">8.0 cm (Bone)</span>
           </div>
         </div>
 
@@ -1394,6 +1418,82 @@
       lucide.createIcons();
     });
 
+    /* Depth Scale Display Mode Toggle */
+    let scaleDisplayMode = 0; // 0: Both Active, 1: Beside Visual Only, 2: Transparent In-Canvas Only, 3: Hidden
+    const scaleModes = [
+      { text: "Scale: Both Active", beside: true, canvas: true },
+      { text: "Scale: Beside Visual", beside: true, canvas: false },
+      { text: "Scale: Transparent Only", beside: false, canvas: true },
+      { text: "Scale: Hidden", beside: false, canvas: false }
+    ];
+
+    const toggleScaleModeBtn = document.getElementById("toggleScaleModeBtn");
+    const scaleBtnText = document.getElementById("scaleBtnText");
+    const depthRulerContainer = document.getElementById("depthRulerContainer");
+
+    if (toggleScaleModeBtn) {
+      toggleScaleModeBtn.addEventListener("click", () => {
+        scaleDisplayMode = (scaleDisplayMode + 1) % scaleModes.length;
+        const currentMode = scaleModes[scaleDisplayMode];
+        scaleBtnText.textContent = currentMode.text;
+        
+        if (currentMode.beside) {
+          depthRulerContainer.classList.remove("hidden");
+        } else {
+          depthRulerContainer.classList.add("hidden");
+        }
+      });
+    }
+
+    function updateDepthRuler() {
+      const totalDepthMm = 80;
+      const skinMm = 2;
+      const fatMm = fatThicknessMm;
+      const muscleMm = muscleThicknessMm;
+      const capsuleMm = 12;
+
+      const fatEndMm = skinMm + fatMm;
+      const muscleEndMm = fatEndMm + muscleMm;
+      const capsuleEndMm = muscleEndMm + capsuleMm;
+
+      // Update segment widths proportionally
+      const skinPct = (skinMm / totalDepthMm) * 100;
+      const fatPct = (fatMm / totalDepthMm) * 100;
+      const musclePct = (muscleMm / totalDepthMm) * 100;
+      const capsulePct = (capsuleMm / totalDepthMm) * 100;
+      const bonePct = Math.max(0, 100 - (skinPct + fatPct + musclePct + capsulePct));
+
+      const rSkin = document.getElementById("rulerSkinSegment");
+      const rFat = document.getElementById("rulerFatSegment");
+      const rMuscle = document.getElementById("rulerMuscleSegment");
+      const rCapsule = document.getElementById("rulerCapsuleSegment");
+      const rBone = document.getElementById("rulerBoneSegment");
+
+      if (rSkin) rSkin.style.width = `${skinPct.toFixed(2)}%`;
+      if (rFat) rFat.style.width = `${fatPct.toFixed(2)}%`;
+      if (rMuscle) rMuscle.style.width = `${musclePct.toFixed(2)}%`;
+      if (rCapsule) rCapsule.style.width = `${capsulePct.toFixed(2)}%`;
+      if (rBone) rBone.style.width = `${bonePct.toFixed(2)}%`;
+
+      // Update numeric text markers
+      const scaleFatMarker = document.getElementById("scaleFatMarker");
+      const scaleMuscleMarker = document.getElementById("scaleMuscleMarker");
+      const scaleCapsuleMarker = document.getElementById("scaleCapsuleMarker");
+      const scaleBoneMarker = document.getElementById("scaleBoneMarker");
+
+      const fatEndCm = (fatEndMm / 10).toFixed(1);
+      const muscleEndCm = (muscleEndMm / 10).toFixed(1);
+      const capsuleEndCm = (capsuleEndMm / 10).toFixed(1);
+
+      if (scaleFatMarker) scaleFatMarker.textContent = `~${fatEndCm} cm (Fat)`;
+      if (scaleMuscleMarker) scaleMuscleMarker.textContent = `~${muscleEndCm} cm (Muscle)`;
+      if (scaleCapsuleMarker) scaleCapsuleMarker.textContent = `~${capsuleEndCm} cm (Capsule)`;
+      if (scaleBoneMarker) scaleBoneMarker.textContent = `${capsuleEndCm} cm+ (Bone)`;
+
+      const chartFatPos = document.getElementById("chartFatPos");
+      if (chartFatPos) chartFatPos.textContent = `Fat (~${fatEndCm}cm)`;
+    }
+
     /* Split Compare View Mode */
     const viewModeBtn = document.getElementById("viewModeBtn");
     const splitCompareContainer = document.getElementById("splitCompareContainer");
@@ -1559,6 +1659,7 @@
 
       updateTissueStatusUI();
       updateThermalProfileSVG();
+      updateDepthRuler();
       checkClinicalHazards();
     }
 
@@ -1957,6 +2058,37 @@
       targetCtx.fillText("Capsule / Tendon", bounds.muscle + 8, 18);
       targetCtx.fillStyle = "#cbd5e1";
       targetCtx.fillText("Cortical Bone", bounds.capsule + 8, 18);
+
+      // 7. Transparent Depth Scale Ruler on Canvas (Medical Ultrasound Style)
+      if (typeof scaleModes !== "undefined" && scaleModes[scaleDisplayMode].canvas) {
+        targetCtx.save();
+        targetCtx.strokeStyle = "rgba(148, 163, 184, 0.35)";
+        targetCtx.fillStyle = "rgba(148, 163, 184, 0.75)";
+        targetCtx.font = "bold 9px JetBrains Mono, monospace";
+        targetCtx.lineWidth = 1;
+
+        // Base ruler line along bottom
+        targetCtx.beginPath();
+        targetCtx.moveTo(0, h - 8);
+        targetCtx.lineTo(w, h - 8);
+        targetCtx.stroke();
+
+        // 1 cm tick marks across 8 cm total depth
+        for (let cm = 0; cm <= 8; cm++) {
+          const xPos = (cm / 8.0) * w;
+          const isMajor = (cm % 2 === 0);
+          const tickHeight = isMajor ? 6 : 3.5;
+          targetCtx.beginPath();
+          targetCtx.moveTo(xPos, h - 8 - tickHeight);
+          targetCtx.lineTo(xPos, h - 8);
+          targetCtx.stroke();
+
+          if (xPos < w - 22) {
+            targetCtx.fillText(`${cm}cm`, Math.max(2, xPos - (cm === 0 ? 0 : 8)), h - 12);
+          }
+        }
+        targetCtx.restore();
+      }
     }
 
     /* SVG Temperature Profile Curve Generator */
@@ -2181,6 +2313,7 @@
       resizeCanvases();
       syncModalityUI();
       updateThermalCalculations();
+      updateDepthRuler();
       animateLoop();
     };
   </script>
