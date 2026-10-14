@@ -36,15 +36,4 @@ An interactive clinical biophysics simulator designed for physical therapy, reha
    - Fully responsive for mobile phones, tablets, laptops, and 4K displays.
    - Ready for instant deployment on [Vercel](https://vercel.com).
 
-## Deployment to Vercel
 
-### Option 1: Vercel CLI
-```bash
-npx vercel
-```
-
-### Option 2: GitHub Integration
-1. Push this directory to your GitHub repository.
-2. In the Vercel dashboard, click **"Add New Project"** and import your repository.
-3. Framework Preset: **"Other"** (Root Directory: `./`).
-4. Click **Deploy**. Vercel will immediately serve `index.html`.
