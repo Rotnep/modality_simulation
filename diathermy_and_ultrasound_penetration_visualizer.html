@@ -1,0 +1,2188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PhysioThermal Lab | Deep Heat & Ultrasound Tissue Simulation</title>
+  <meta name="description" content="Interactive clinical biophysics visualizer for therapeutic ultrasound and diathermy modalities. Explore real-world dosimetry, tissue thermal response, and ultrasound movable mode.">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Tone.js for clinical modality sound synthesis -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              500: '#0284c7',
+              600: '#0369a1',
+              700: '#075985',
+              900: '#0c4a6e',
+            },
+            amberFlame: '#f59e0b',
+            heatRed: '#ef4444',
+            ultrasoundBlue: '#38bdf8',
+            swdGreen: '#10b981',
+            mwdViolet: '#8b5cf6',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .glow-pulse {
+      animation: pulseGlow 2.0s infinite ease-in-out;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.85; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.02); }
+    }
+
+    .burn-flash {
+      animation: burnFlash 1.2s infinite ease-in-out;
+    }
+    @keyframes burnFlash {
+      0%, 100% { border-color: rgba(239, 68, 68, 0.4); box-shadow: 0 0 10px rgba(239, 68, 68, 0.2); }
+      50% { border-color: rgba(239, 68, 68, 1); box-shadow: 0 0 25px rgba(239, 68, 68, 0.6); }
+    }
+
+    /* Range slider styling */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: #334155;
+      border-radius: 9999px;
+      height: 6px;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 18px;
+      width: 18px;
+      border-radius: 50%;
+      background: #38bdf8;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.7);
+      transition: all 0.15s ease-in-out;
+    }
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+      background: #7dd3fc;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-sky-500 selection:text-white">
+
+  <!-- Top Application Bar -->
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 via-indigo-600 to-amber-500 flex items-center justify-center shadow-lg shadow-sky-500/20 ring-1 ring-white/20">
+          <i data-lucide="waves" class="w-6 h-6 text-white"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base sm:text-lg font-bold text-slate-50 tracking-tight">
+              PhysioThermal Lab
+            </h1>
+            <span class="text-[10px] sm:text-xs px-2 py-0.5 rounded-full bg-sky-950 text-sky-400 border border-sky-800/80 font-mono-code font-semibold">
+              Clinical Biophysics Simulator
+            </span>
+          </div>
+          <p class="text-[11px] sm:text-xs text-slate-400">
+            Deep Heat & Ultrasound: Real-World Dosimetry, Movable Mode & Tissue Thermal Dynamics
+          </p>
+        </div>
+      </div>
+
+      <!-- Action Toggles & Audio Controls -->
+      <div class="flex items-center flex-wrap gap-2">
+        <!-- Preset Dropdown -->
+        <select id="presetSelect" class="bg-slate-800 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 border border-slate-700 hover:border-slate-600 focus:outline-none focus:ring-1 focus:ring-sky-500">
+          <option value="">Clinical Presets...</option>
+          <option value="preset_capsule">Adhesive Capsulitis (US 1MHz - Moving)</option>
+          <option value="preset_patellar">Patellar Tendinopathy (US 3MHz - Moving)</option>
+          <option value="preset_us_stationary">Improper Technique: Stationary US (Periosteal Burn Hazard!)</option>
+          <option value="preset_swd_muscle">Quadriceps Spasm (SWD Inductive Coil)</option>
+          <option value="preset_swd_fat_burn">Adipose Overheating (SWD Capacitive + Thick Fat)</option>
+        </select>
+
+        <button id="audioToggleBtn" class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition" title="Toggle Clinical Equipment Acoustic Hum">
+          <i data-lucide="volume-x" id="audioIcon" class="w-3.5 h-3.5"></i>
+          <span id="audioText" class="hidden sm:inline">Modality Audio</span>
+        </button>
+
+        <button id="viewModeBtn" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 text-white shadow-sm transition">
+          <i data-lucide="columns" class="w-3.5 h-3.5"></i>
+          <span id="viewModeText">Split Compare</span>
+        </button>
+
+        <button id="clinicalGuideBtn" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition" title="Clinical Guide & Dosimetry Safety Rules">
+          <i data-lucide="book-open" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Live Critical Burn & Tissue Hazard Alert Banner -->
+  <div id="hazardBanner" class="hidden bg-rose-950/90 border-b border-rose-500/80 px-4 py-2 text-rose-200 text-xs font-medium shadow-lg z-40 transition-all duration-300">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-400 shrink-0 animate-bounce"></i>
+        <span id="hazardMessage" class="font-semibold">Tissue Hazard Detected!</span>
+      </div>
+      <span id="hazardAction" class="text-[11px] font-mono-code bg-rose-900/80 px-2 py-0.5 rounded text-rose-300 border border-rose-700">Immediate Adjustment Required</span>
+    </div>
+  </div>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+    <!-- Left Control & Parameters Panel (4 cols on lg) -->
+    <section class="lg:col-span-5 flex flex-col gap-4">
+
+      <!-- Modality Selector Card -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
+        <div class="flex items-center justify-between mb-2.5">
+          <label class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="cpu" class="w-4 h-4 text-sky-400"></i> Clinical Modality
+          </label>
+          <span class="text-[10px] text-slate-400 font-mono-code">Select Energy Type</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <!-- Ultrasound (Primary Focus) -->
+          <button data-modality="us_modal" class="modality-select-btn active text-left p-3 rounded-xl border border-sky-500/60 bg-sky-950/40 text-slate-200 hover:border-sky-400 transition flex items-start justify-between">
+            <div>
+              <div class="font-semibold text-sm text-sky-300 flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-sky-400 shadow-sm shadow-sky-400 animate-pulse"></span>
+                Therapeutic Ultrasound (US)
+              </div>
+              <p class="text-xs text-slate-400 mt-0.5">Acoustic Pressure Wave • 1 or 3 MHz</p>
+            </div>
+            <span class="text-[10px] font-mono-code px-1.5 py-0.5 rounded bg-sky-900/60 text-sky-300 border border-sky-700/50">Acoustic</span>
+          </button>
+
+          <!-- SWD Inductive -->
+          <button data-modality="swd_inductive" class="modality-select-btn text-left p-3 rounded-xl border border-slate-800 bg-slate-800/40 text-slate-300 hover:border-slate-700 transition flex items-start justify-between">
+            <div>
+              <div class="font-semibold text-sm text-slate-200 flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                SWD - Inductive Coil
+              </div>
+              <p class="text-xs text-slate-400 mt-0.5">27.12 MHz • Magnetic Eddy Currents</p>
+            </div>
+            <span class="text-[10px] font-mono-code px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">~5-7 cm</span>
+          </button>
+
+          <!-- SWD Capacitive -->
+          <button data-modality="swd_capacitive" class="modality-select-btn text-left p-3 rounded-xl border border-slate-800 bg-slate-800/40 text-slate-300 hover:border-slate-700 transition flex items-start justify-between">
+            <div>
+              <div class="font-semibold text-sm text-slate-200 flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                SWD - Capacitive Plates
+              </div>
+              <p class="text-xs text-slate-400 mt-0.5">27.12 MHz • Electric Field & Fat Resistance</p>
+            </div>
+            <span class="text-[10px] font-mono-code px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">~3-5 cm</span>
+          </button>
+
+          <!-- MWD -->
+          <button data-modality="mwd" class="modality-select-btn text-left p-3 rounded-xl border border-slate-800 bg-slate-800/40 text-slate-300 hover:border-slate-700 transition flex items-start justify-between">
+            <div>
+              <div class="font-semibold text-sm text-slate-200 flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-purple-400"></span>
+                Microwave (MWD)
+              </div>
+              <p class="text-xs text-slate-400 mt-0.5">2450 MHz • Interface Reflection & Water</p>
+            </div>
+            <span class="text-[10px] font-mono-code px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">~2-3 cm</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Real-World Parameter Adjustment Deck -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-4">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+          <label class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="sliders" class="w-4 h-4 text-sky-400"></i> Real-World Parameters
+          </label>
+          <button id="resetDefaultsBtn" class="text-xs text-slate-400 hover:text-sky-400 flex items-center gap-1 transition">
+            <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Reset Defaults
+          </button>
+        </div>
+
+        <!-- Ultrasound-Specific Real-World Controls (Frequency, Movable Mode, Duty Cycle) -->
+        <div id="usControlsSection" class="space-y-3.5">
+          <!-- Frequency Selection: 1 MHz vs 3 MHz -->
+          <div class="space-y-1.5">
+            <div class="flex justify-between items-center text-xs">
+              <span class="text-slate-300 font-semibold flex items-center gap-1">
+                <i data-lucide="radio" class="w-3.5 h-3.5 text-sky-400"></i> Ultrasound Frequency
+              </span>
+              <span id="usFreqBadge" class="text-[11px] font-mono-code px-2 py-0.5 rounded bg-sky-950 text-sky-400 border border-sky-800">
+                1.0 MHz (Deep Target: 3 - 5 cm)
+              </span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <button id="btnFreq1" class="py-1.5 px-2 text-xs font-semibold rounded-lg bg-sky-600 text-white border border-sky-400/40 shadow-sm transition">
+                1.0 MHz (Deep Musculature / Joint)
+              </button>
+              <button id="btnFreq3" class="py-1.5 px-2 text-xs font-semibold rounded-lg bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition">
+                3.0 MHz (Superficial Tendon / Ligament)
+              </button>
+            </div>
+            <p id="freqClinicalHint" class="text-[11px] text-slate-400">
+              1 MHz penetrates deep (3-5 cm) with minimal superficial absorption. 3 MHz absorbs 3x faster in superficial tissue (1-2.5 cm).
+            </p>
+          </div>
+
+          <!-- Ultrasound Transducer Movable Mode (Critical Real-World Technique) -->
+          <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800 space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-slate-200 font-semibold flex items-center gap-1.5">
+                <i data-lucide="move" class="w-4 h-4 text-emerald-400"></i> Transducer Movement Technique
+              </span>
+              <span id="transducerBadge" class="text-[10px] font-mono-code font-bold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800">
+                MOVABLE MODE (Continuous Stroke)
+              </span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <button id="btnTransducerMoving" class="py-1.5 px-2 text-xs font-semibold rounded-lg bg-emerald-600 text-white border border-emerald-400/40 shadow-sm transition flex items-center justify-center gap-1">
+                <i data-lucide="activity" class="w-3.5 h-3.5"></i> Movable (Recommended)
+              </button>
+              <button id="btnTransducerStationary" class="py-1.5 px-2 text-xs font-semibold rounded-lg bg-slate-800 text-slate-400 hover:text-rose-300 border border-slate-700 transition flex items-center justify-center gap-1">
+                <i data-lucide="alert-octagon" class="w-3.5 h-3.5"></i> Stationary (HAZARDOUS)
+              </button>
+            </div>
+            <div id="movementSpeedContainer" class="pt-1.5 flex items-center justify-between text-xs">
+              <span class="text-slate-400 text-[11px]">Stroke Velocity:</span>
+              <div class="flex items-center gap-1.5 text-[11px]">
+                <button id="speedSlow" class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 hover:border-slate-600">1.5 cm/s (Slow)</button>
+                <button id="speedNorm" class="px-2 py-0.5 rounded bg-sky-700 text-white border border-sky-500 font-medium">3.5 cm/s (Norm)</button>
+                <button id="speedFast" class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 hover:border-slate-600">5.5 cm/s (Fast)</button>
+              </div>
+            </div>
+            <p id="movementClinicalNote" class="text-[11px] text-emerald-300/90 leading-tight">
+              Moving transducer at 3-4 cm/s disperses acoustic hot spots and prevents standing waves at the bone periosteum.
+            </p>
+          </div>
+
+          <!-- Acoustic Coupling Gel Quality -->
+          <div class="flex items-center justify-between text-xs pt-1">
+            <span class="text-slate-300 flex items-center gap-1">
+              <i data-lucide="droplet" class="w-3.5 h-3.5 text-cyan-400"></i> Acoustic Coupling Medium:
+            </span>
+            <select id="couplingSelect" class="bg-slate-800 text-slate-200 text-xs rounded px-2 py-1 border border-slate-700 focus:outline-none">
+              <option value="optimal">Optimal Gel Layer (100% Transmission)</option>
+              <option value="poor">Suboptimal Gel / Air Gap (60% Reflection / Crystal Heat)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Diathermy Specific Controls (PSWD / Towel) -->
+        <div id="diathermyControlsSection" class="hidden space-y-3 pt-1">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-300 flex items-center gap-1">
+              <i data-lucide="layers" class="w-3.5 h-3.5 text-amber-400"></i> Towel Spacing & Perspiration:
+            </span>
+            <select id="towelSelect" class="bg-slate-800 text-slate-200 text-xs rounded px-2 py-1 border border-slate-700 focus:outline-none">
+              <option value="dry">Dry Cotton Towel (Recommended)</option>
+              <option value="sweat">Damp / Perspiration Present (Scald Hazard!)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Emission Mode & Duty Cycle (Continuous vs Pulsed) -->
+        <div class="space-y-2 pt-2 border-t border-slate-800">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-300 font-semibold" id="pulseModeLabel">Emission Duty Cycle:</span>
+            <span id="dutyCycleBadge" class="text-[11px] font-mono-code px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800">
+              Continuous (100% Thermal)
+            </span>
+          </div>
+          <div class="grid grid-cols-4 gap-1.5">
+            <button id="btnDuty100" class="duty-btn py-1.5 text-xs font-semibold rounded-lg bg-sky-600 text-white border border-sky-400/40 shadow-sm transition">
+              100% Cont.
+            </button>
+            <button id="btnDuty50" class="duty-btn py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition">
+              50% Pulsed
+            </button>
+            <button id="btnDuty20" class="duty-btn py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition">
+              20% Pulsed
+            </button>
+            <button id="btnDuty10" class="duty-btn py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition">
+              10% Pulsed
+            </button>
+          </div>
+          <p id="dutyCycleNote" class="text-[11px] text-slate-400">
+            100% produces vigorous thermal effects; 20% pulsed allows tissue cooling between pulses, yielding non-thermal acoustic streaming and cellular repair.
+          </p>
+        </div>
+
+        <!-- Real-World Intensity Slider (W/cm² for US, Watts for Diathermy) -->
+        <div class="space-y-1.5 pt-2 border-t border-slate-800">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-300 font-semibold flex items-center gap-1">
+              <i data-lucide="zap" class="w-3.5 h-3.5 text-sky-400"></i>
+              <span id="intensityLabel">Ultrasound Intensity (SATA)</span>
+            </span>
+            <span id="intensityValText" class="font-mono-code text-sky-400 font-bold">1.50 W/cm² (Moderate Thermal)</span>
+          </div>
+          <input type="range" id="intensitySlider" min="0.2" max="2.8" value="1.5" step="0.1" class="w-full">
+          <div class="flex justify-between text-[10px] text-slate-500 font-mono-code">
+            <span id="intMinLabel">0.2 W/cm² (Acute)</span>
+            <span id="intMidLabel">1.5 W/cm² (Thermal)</span>
+            <span id="intMaxLabel">2.5+ W/cm² (High/Danger)</span>
+          </div>
+          <div id="acousticPowerOutput" class="text-[11px] font-mono-code text-slate-400 flex justify-between bg-slate-950/60 px-2.5 py-1 rounded border border-slate-800/80">
+            <span>Effective Radiating Area (ERA): 5.0 cm²</span>
+            <span id="totalPowerWatts" class="text-sky-300 font-semibold">Total Power: 7.5 Watts</span>
+          </div>
+        </div>
+
+        <!-- Treatment Duration & Live Accumulation Timer -->
+        <div class="space-y-2 pt-2 border-t border-slate-800">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-300 font-semibold flex items-center gap-1">
+              <i data-lucide="clock" class="w-3.5 h-3.5 text-emerald-400"></i> Treatment Time & Accumulation
+            </span>
+            <span id="timeValText" class="font-mono-code text-emerald-400 font-bold">5.0 min (Target)</span>
+          </div>
+          <input type="range" id="timeSlider" min="1" max="15" value="5" step="0.5" class="w-full">
+          <div class="flex items-center justify-between text-[11px] text-slate-400">
+            <div class="flex items-center gap-2">
+              <button id="btnPlayTimer" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1 transition">
+                <i data-lucide="play" id="timerIcon" class="w-3 h-3 text-emerald-400"></i>
+                <span id="timerBtnText">Run Session</span>
+              </button>
+              <button id="btnResetTimer" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 transition" title="Reset Elapsed Time">
+                <i data-lucide="rotate-ccw" class="w-3 h-3"></i>
+              </button>
+            </div>
+            <span id="elapsedClockText" class="font-mono-code text-slate-300 font-semibold">Elapsed: 5.0 / 5.0 min</span>
+          </div>
+        </div>
+
+        <!-- Patient Anatomic Thickness (Fat & Muscle) -->
+        <div class="space-y-2 pt-2 border-t border-slate-800">
+          <div class="flex justify-between text-xs">
+            <span class="text-slate-300 flex items-center gap-1">
+              <span class="w-2.5 h-2.5 rounded bg-amber-400 inline-block"></span> Subcutaneous Fat Layer
+            </span>
+            <span id="fatValText" class="font-mono-code text-amber-400 font-semibold">12 mm (Average)</span>
+          </div>
+          <input type="range" id="fatSlider" min="4" max="35" value="12" step="1" class="w-full">
+          <div class="flex justify-between text-[10px] text-slate-500 font-mono-code">
+            <span>4mm (Athletic)</span>
+            <span>15mm (Moderate)</span>
+            <span>35mm (Obese)</span>
+          </div>
+          <p id="fatImpactNote" class="text-[11px] text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800">
+            Fat attenuates ultrasound minimally. In contrast, Capacitive SWD deposits high energy in thick adipose layers.
+          </p>
+        </div>
+
+      </div>
+
+      <!-- Live Tissue Layers Physiological & Thermal State Dashboard -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
+        <div class="flex items-center justify-between pb-1 border-b border-slate-800">
+          <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="heart-pulse" class="w-4 h-4 text-rose-400"></i> Tissue Thermal & Burn Status
+          </label>
+          <span class="text-[10px] text-slate-400 font-mono-code">Basal: 37.0°C</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2 text-xs">
+          <!-- Skin Layer Status -->
+          <div id="skinStatusCard" class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between transition-all">
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                <span class="font-semibold text-slate-200">Epidermis & Skin</span>
+              </div>
+              <span id="skinEffectDesc" class="text-[11px] text-slate-400 block mt-0.5">Mild surface hyperemia</span>
+            </div>
+            <div class="text-right">
+              <span id="skinTempVal" class="font-mono-code text-slate-200 font-bold block">37.8 °C</span>
+              <span id="skinStateBadge" class="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 border border-slate-700">Normal</span>
+            </div>
+          </div>
+
+          <!-- Fat Layer Status -->
+          <div id="fatStatusCard" class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between transition-all">
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                <span class="font-semibold text-amber-200">Subcutaneous Fat</span>
+              </div>
+              <span id="fatEffectDesc" class="text-[11px] text-slate-400 block mt-0.5">Low acoustic attenuation</span>
+            </div>
+            <div class="text-right">
+              <span id="fatTempVal" class="font-mono-code text-amber-400 font-bold block">37.5 °C</span>
+              <span id="fatStateBadge" class="text-[10px] px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">Safe</span>
+            </div>
+          </div>
+
+          <!-- Muscle Belly Status -->
+          <div id="muscleStatusCard" class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between transition-all">
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                <span class="font-semibold text-rose-200">Skeletal Muscle</span>
+              </div>
+              <span id="muscleEffectDesc" class="text-[11px] text-slate-400 block mt-0.5">Moderate therapeutic heat</span>
+            </div>
+            <div class="text-right">
+              <span id="muscleTempVal" class="font-mono-code text-rose-400 font-bold block">39.6 °C</span>
+              <span id="muscleStateBadge" class="text-[10px] px-1.5 py-0.2 rounded bg-sky-950 text-sky-300 border border-sky-800">Therapeutic</span>
+            </div>
+          </div>
+
+          <!-- Joint Capsule / Synovium -->
+          <div id="capsuleStatusCard" class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between transition-all">
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                <span class="font-semibold text-cyan-200">Joint Capsule / Tendon</span>
+              </div>
+              <span id="capsuleEffectDesc" class="text-[11px] text-slate-400 block mt-0.5">High collagen absorption</span>
+            </div>
+            <div class="text-right">
+              <span id="capsuleTempVal" class="font-mono-code text-cyan-400 font-bold block">40.4 °C</span>
+              <span id="capsuleStateBadge" class="text-[10px] px-1.5 py-0.2 rounded bg-sky-950 text-sky-300 border border-sky-800">Vigorous Stretch</span>
+            </div>
+          </div>
+
+          <!-- Periosteum / Cortical Bone -->
+          <div id="boneStatusCard" class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between transition-all">
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-slate-300"></span>
+                <span class="font-semibold text-slate-200">Bone Periosteum</span>
+              </div>
+              <span id="boneEffectDesc" class="text-[11px] text-slate-400 block mt-0.5">Reflection & standing wave</span>
+            </div>
+            <div class="text-right">
+              <span id="boneTempVal" class="font-mono-code text-slate-200 font-bold block">38.2 °C</span>
+              <span id="boneStateBadge" class="text-[10px] px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">Safe</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Center & Right Simulation Canvas & Graph Display (7 cols on lg) -->
+    <section class="lg:col-span-7 flex flex-col gap-4">
+
+      <!-- Main Simulation Viewport -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-2xl relative flex flex-col">
+
+        <!-- Simulation Toolbar -->
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3 border-b border-slate-800 pb-3">
+          <div class="flex items-center gap-2">
+            <span id="modalityStatusIcon" class="w-3.5 h-3.5 rounded-full bg-sky-400 ring-4 ring-sky-950 shadow-md shadow-sky-500/30"></span>
+            <div>
+              <span id="simTitle" class="font-bold text-sm text-slate-100">Therapeutic Ultrasound (1.0 MHz Continuous)</span>
+              <span id="simSubtitle" class="text-xs text-slate-400 block">Penetration: 3.5 - 5 cm • Target: Deep Musculature & Capsule</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 text-xs">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+              <span class="text-slate-400 text-[11px]">Heat Absorption</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
+              <span class="text-slate-400 text-[11px]">Energy Wavefront</span>
+            </div>
+            <button id="togglePlayBtn" class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+              <i data-lucide="pause" id="playIcon" class="w-3.5 h-3.5"></i>
+              <span id="playText">Pause</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Interactive Canvas Viewport -->
+        <div class="relative w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-inner group select-none">
+          <canvas id="simCanvas" class="w-full h-[380px] sm:h-[420px] block cursor-crosshair"></canvas>
+
+          <!-- Floating Depth Legend (Left overlay) -->
+          <div class="absolute left-2 top-3 bottom-3 flex flex-col justify-between pointer-events-none text-[10px] font-mono-code text-slate-400 bg-slate-950/85 px-1.5 py-1 rounded border border-slate-800/80 backdrop-blur-sm z-20">
+            <span>0cm (Skin)</span>
+            <span id="overlayFatMarker">1.2cm (Fat)</span>
+            <span>3.5cm (Muscle)</span>
+            <span>5.0cm (Capsule)</span>
+            <span>6.5cm+ (Bone)</span>
+          </div>
+
+          <!-- Interactive Hover Inspector Pill -->
+          <div id="canvasTooltip" class="absolute pointer-events-none opacity-0 transition-opacity bg-slate-900/95 border border-sky-500/50 text-slate-100 text-[11px] p-2.5 rounded-xl shadow-2xl backdrop-blur-md min-w-[170px] z-30">
+            <div class="font-bold text-sky-400" id="tipLayer">Skin / Subcutaneous</div>
+            <div class="text-slate-300 text-[10px]" id="tipDepth">Depth: 1.0 cm</div>
+            <div class="text-red-400 font-mono-code font-semibold" id="tipTemp">Temp: 37.8 °C (+0.8°C)</div>
+            <div class="text-[9px] text-slate-400 mt-0.5" id="tipPhysic">Coupling zone</div>
+          </div>
+
+          <!-- Movable Transducer Head Indicator Overlay Badge -->
+          <div id="transducerLiveBadge" class="absolute top-2 right-2 flex items-center gap-2 bg-slate-900/90 border border-slate-800 px-2.5 py-1 rounded-lg backdrop-blur-sm pointer-events-none text-xs z-20">
+            <i data-lucide="disc" class="w-3.5 h-3.5 text-sky-400 animate-spin"></i>
+            <span id="applicatorLabel" class="font-medium text-slate-200">Moving Transducer (3.5 cm/s)</span>
+          </div>
+
+          <!-- Stationary Burn Hazard Red Flashing Warning Overlay on Canvas -->
+          <div id="canvasBurnWarning" class="hidden absolute inset-x-0 bottom-2 mx-auto max-w-sm bg-rose-950/90 border border-rose-500/80 text-rose-200 px-3 py-1.5 rounded-lg shadow-2xl flex items-center justify-between text-xs font-semibold z-20 animate-pulse">
+            <span class="flex items-center gap-1.5">
+              <i data-lucide="flame" class="w-4 h-4 text-rose-400"></i>
+              <span>PERIOSTEAL HOT SPOT / BONE BURN</span>
+            </span>
+            <span class="text-[10px] font-mono-code bg-rose-900 px-1.5 py-0.5 rounded text-rose-300">Stationary Warning</span>
+          </div>
+        </div>
+
+        <!-- Comparative Secondary Canvas (Split View Mode) -->
+        <div id="splitCompareContainer" class="hidden mt-4 pt-4 border-t border-slate-800">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+              <span class="text-xs font-bold text-slate-200">Comparison: SWD Inductive Coil (Magnetic Drum - 27.12 MHz)</span>
+            </div>
+            <span class="text-[11px] font-mono-code text-emerald-400">Deep Muscular Eddy Currents</span>
+          </div>
+          <div class="relative w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-inner">
+            <canvas id="compareCanvas" class="w-full h-[220px] block"></canvas>
+          </div>
+        </div>
+
+        <!-- Live Depth vs. Temperature Absorption Profile Curve -->
+        <div class="mt-4 pt-3 border-t border-slate-800">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <i data-lucide="activity" class="w-4 h-4 text-red-400"></i>
+              <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                Penetration & Thermal Profile Curve (T<sub>x</sub> vs Depth)
+              </span>
+            </div>
+            <div class="flex items-center gap-2 text-[11px] font-mono-code">
+              <span class="text-slate-400">Basal: 37.0°C</span>
+              <span class="text-rose-400 font-semibold border-l border-slate-700 pl-2">Burn Limit: 44.0°C</span>
+            </div>
+          </div>
+
+          <!-- SVG Profile Graph -->
+          <div class="w-full h-32 bg-slate-950 rounded-xl p-2 border border-slate-800/80 relative overflow-hidden">
+            <svg id="profileChartSvg" class="w-full h-full" viewBox="0 0 600 100" preserveAspectRatio="none">
+              <!-- Grid Lines -->
+              <line x1="0" y1="20" x2="600" y2="20" stroke="#334155" stroke-dasharray="3 3" stroke-width="0.8" />
+              <line x1="0" y1="50" x2="600" y2="50" stroke="#334155" stroke-dasharray="3 3" stroke-width="0.8" />
+              <line x1="0" y1="80" x2="600" y2="80" stroke="#334155" stroke-dasharray="3 3" stroke-width="0.8" />
+
+              <!-- Tissue Layer Vertical Boundaries -->
+              <rect id="svgFatBand" x="12" y="0" width="80" height="100" fill="#f59e0b" fill-opacity="0.08" />
+              <rect id="svgMuscleBand" x="92" y="0" width="280" height="100" fill="#ef4444" fill-opacity="0.05" />
+              <rect id="svgCapsuleBand" x="372" y="0" width="80" height="100" fill="#06b6d4" fill-opacity="0.08" />
+              <rect id="svgBoneBand" x="452" y="0" width="148" height="100" fill="#94a3b8" fill-opacity="0.12" />
+
+              <!-- Baseline 37.0 C line -->
+              <line x1="0" y1="90" x2="600" y2="90" stroke="#64748b" stroke-width="1" />
+
+              <!-- Critical Burn Danger Threshold Line (44°C = y:28) -->
+              <line x1="0" y1="28" x2="600" y2="28" stroke="#ef4444" stroke-dasharray="4 2" stroke-width="1.2" stroke-opacity="0.75" />
+              <text x="5" y="24" fill="#f87171" font-size="8" font-family="JetBrains Mono">Pain & Burn Danger Threshold (44°C)</text>
+
+              <!-- Dynamic Temperature Curve Path -->
+              <path id="tempCurvePath" d="M 0,90 Q 150,40 300,50 T 600,90" fill="none" stroke="#ef4444" stroke-width="3" stroke-linecap="round" />
+              <!-- Energy Intensity Attenuation Curve Path -->
+              <path id="energyCurvePath" d="M 0,10 Q 150,50 300,75 T 600,90" fill="none" stroke="#38bdf8" stroke-width="1.8" stroke-dasharray="4 2" />
+
+              <!-- Peak indicator circle -->
+              <circle id="peakPoint" cx="200" cy="30" r="4.5" fill="#f43f5e" class="glow-pulse" />
+            </svg>
+
+            <!-- Chart Legends & Depth labels -->
+            <div class="absolute bottom-1 left-3 right-3 flex justify-between text-[9px] font-mono-code text-slate-400 pointer-events-none">
+              <span>Skin (0cm)</span>
+              <span id="chartFatPos">Fat (~1.2cm)</span>
+              <span>Muscle (~3.5cm)</span>
+              <span>Joint Capsule (~5cm)</span>
+              <span>Bone Periosteum (~6.5cm)</span>
+            </div>
+          </div>
+
+          <!-- Curve Legend -->
+          <div class="flex items-center justify-between text-[11px] text-slate-400 mt-2 px-1">
+            <div class="flex items-center gap-4">
+              <span class="flex items-center gap-1.5">
+                <span class="w-3 h-0.5 bg-red-500 inline-block rounded"></span>
+                <span>Tissue Temperature (T<sub>x</sub>)</span>
+              </span>
+              <span class="flex items-center gap-1.5">
+                <span class="w-3 h-0.5 bg-sky-400 border-b border-dashed border-sky-400 inline-block"></span>
+                <span>Energy Attenuation</span>
+              </span>
+            </div>
+            <span id="peakThermalText" class="text-rose-400 font-semibold font-mono-code">Max Temp: 40.4°C (+3.4°C)</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Synthesis & High-Yield Modality Comparison Matrix -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+          <i data-lucide="layers" class="w-4 h-4 text-emerald-400"></i> Modality Physical & Clinical Comparison Matrix
+        </h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400 font-semibold bg-slate-950/50">
+                <th class="py-2.5 px-3">Modality</th>
+                <th class="py-2.5 px-3">Wave & Mechanism</th>
+                <th class="py-2.5 px-3">Effective Depth</th>
+                <th class="py-2.5 px-3">Primary Target Tissue</th>
+                <th class="py-2.5 px-3">Primary Risk / Interface Hazard</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60 text-slate-300">
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="py-2 px-3 font-semibold text-sky-400 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-sky-400"></span> Ultrasound 1 MHz
+                </td>
+                <td class="py-2 px-3">Acoustic Longitudinal Pressure Wave</td>
+                <td class="py-2 px-3 font-mono-code text-sky-300">3 – 5 cm</td>
+                <td class="py-2 px-3 text-sky-300">Deep tendons, joint capsule, periarticular collagen</td>
+                <td class="py-2 px-3 text-rose-400 font-semibold">Periosteal bone reflection / Standing wave burn if static</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="py-2 px-3 font-semibold text-cyan-400 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-cyan-400"></span> Ultrasound 3 MHz
+                </td>
+                <td class="py-2 px-3">High-Freq Acoustic Pressure (3x attenuation)</td>
+                <td class="py-2 px-3 font-mono-code text-cyan-300">1 – 2.5 cm</td>
+                <td class="py-2 px-3 text-cyan-300">Superficial tendons (patellar, lateral epicondyle, wrist)</td>
+                <td class="py-2 px-3 text-slate-400">Rapid overheating (heats 3x faster than 1 MHz)</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="py-2 px-3 font-semibold text-emerald-400 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400"></span> SWD (Inductive)
+                </td>
+                <td class="py-2 px-3">Magnetic Field (H-field) &rarr; Eddy currents</td>
+                <td class="py-2 px-3 font-mono-code text-emerald-300">5 – 7 cm</td>
+                <td class="py-2 px-3 text-emerald-300">High electrolyte tissues (Muscle belly, synovium)</td>
+                <td class="py-2 px-3 text-slate-400">Metal implants, perspiration scald (requires dry towel)</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="py-2 px-3 font-semibold text-amber-400 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-amber-400"></span> SWD (Capacitive)
+                </td>
+                <td class="py-2 px-3">Electric Field (E-field) &rarr; Displacement current</td>
+                <td class="py-2 px-3 font-mono-code text-amber-300">3 – 5 cm</td>
+                <td class="py-2 px-3 text-amber-300">High dielectric resistance (Adipose fat)</td>
+                <td class="py-2 px-3 text-rose-400 font-semibold">Subcutaneous fat overheating & adipose necrosis</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="py-2 px-3 font-semibold text-purple-400 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-purple-400"></span> MWD (2450 MHz)
+                </td>
+                <td class="py-2 px-3">Electromagnetic Radiation (Director horn)</td>
+                <td class="py-2 px-3 font-mono-code text-purple-300">2 – 3 cm</td>
+                <td class="py-2 px-3 text-purple-300">Superficial high-water tissue</td>
+                <td class="py-2 px-3 text-rose-400 font-semibold">Fat-muscle interface reflection & standing wave hot spots</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Educational & Clinical Examination Modal -->
+  <div id="guideModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 max-w-2xl w-full rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+      <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+        <div class="flex items-center gap-2">
+          <i data-lucide="book-open" class="w-5 h-5 text-sky-400"></i>
+          <h3 class="font-bold text-slate-100">Physical Therapy Biophysics & Safety Summary</h3>
+        </div>
+        <button id="closeGuideBtn" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="p-5 overflow-y-auto space-y-4 text-xs leading-relaxed text-slate-300">
+        <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-sky-300 text-sm mb-1">1. Why is Transducer Movement Mode Mandatory in Ultrasound?</h4>
+          <p>
+            Therapeutic ultrasound produces longitudinal acoustic compression waves. Because soft tissue and cortical bone have a drastic acoustic impedance mismatch, approximately <strong>30% to 35% of acoustic energy is reflected</strong> backwards off the bone. If the applicator is held stationary, reflected and incident waves superimpose to create a <strong>standing wave</strong>. This localized energy spike overheats the unyielding periosteum within seconds, provoking severe periosteal pain and potential bone burns. Moving the transducer at <strong>3 to 4 cm/s</strong> distributes acoustic energy evenly across the target area.
+          </p>
+        </div>
+
+        <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-cyan-300 text-sm mb-1">2. 1 MHz vs 3 MHz: Selection Criteria</h4>
+          <p>
+            Ultrasonic wave attenuation is directly proportional to frequency. <strong>1 MHz</strong> has low superficial attenuation and penetrates deeply (up to 5 cm), making it ideal for deep hip, knee capsule, and massive lumbar muscles. <strong>3 MHz</strong> attenuates approximately 3 to 4 times faster, depositing almost all energy within the first 1 to 2.5 cm. Use 3 MHz for superficial structures like patellar tendon, lateral epicondyle, or achilles tendon, and reduce intensity/time accordingly.
+          </p>
+        </div>
+
+        <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-amber-300 text-sm mb-1">3. Capacitive SWD vs Inductive SWD in Adipose Tissue</h4>
+          <p>
+            <strong>Capacitive plates</strong> create an electric field (E-field) where tissues act as capacitors in series. Fat has low water and high electrical resistance, causing high displacement impedance and preferential heat dissipation in superficial adipose tissue. In patients with thicker subcutaneous fat (&gt;15-20 mm), this creates a significant fat necrosis risk. In contrast, <strong>Inductive SWD</strong> uses magnetic fields that pass right through fat without resistance, inducing circulating eddy currents directly within electrolytic muscle.
+          </p>
+        </div>
+
+        <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-rose-300 text-sm mb-1">4. Therapeutic Temperature Thresholds</h4>
+          <ul class="list-disc pl-4 space-y-1 mt-1 text-slate-300">
+            <li><strong>Mild Thermal (+1°C, ~38°C):</strong> Mild inflammation resolution, metabolic rate acceleration.</li>
+            <li><strong>Moderate Thermal (+2°C to +3°C, ~39-40°C):</strong> Pain reduction, reduction of muscle spasm, increased blood flow.</li>
+            <li><strong>Vigorous Thermal (+3°C to +4°C, ~40-42°C):</strong> Viscoelastic alteration of collagen, tissue extensibility stretch window.</li>
+            <li><strong>Hazardous (&gt;43°C - 45°C):</strong> Cutaneous thermal pain, epidermal blistering, cellular protein denaturation, and tissue burn.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="p-3 border-t border-slate-800 bg-slate-950/80 flex justify-end">
+        <button id="dismissGuideBtn" class="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs rounded-lg transition">
+          Understood
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="border-t border-slate-800 bg-slate-950 text-slate-500 text-xs py-3 text-center">
+    <div class="max-w-7xl mx-auto px-4 flex flex-wrap items-center justify-between gap-2">
+      <span>PhysioThermal Lab &bull; Clinical Biophysics & Thermal Dosimetry Simulator</span>
+      <span>Designed for Physical Therapy & Rehabilitation Biophysics</span>
+    </div>
+  </footer>
+
+  <script>
+    /* Initialize Lucide icons */
+    lucide.createIcons();
+
+    /* Modality Configuration Constants */
+    const MODALITY_DATA = {
+      us_modal: {
+        name: "Therapeutic Ultrasound (US)",
+        frequency: "1.0 / 3.0 MHz Acoustic",
+        field: "Longitudinal Pressure Wave",
+        applicator: "US Transducer Head (5 cm² ERA)",
+        color: "#38bdf8",
+        accentClass: "text-sky-400",
+        depthMin: 3.5,
+        depthMax: 5.0,
+        soundPitch: 440,
+        fatAbsorptionCoeff: 0.15,
+        muscleAbsorptionCoeff: 0.85,
+        capsuleAbsorptionCoeff: 1.35,
+        boneReflection: 0.35,
+        safetyTitle: "Ultrasound Safety & Technique",
+        safetyDesc: "Acoustic reflection off bone can cause severe periosteal pain if transducer is held stationary. Maintain continuous circular movement with adequate acoustic gel coupling.",
+        tags: ["Continuous Movement Mandatory", "Acoustic Gel Required", "Avoid Over Bony Prominences", "Monitor Periosteal Sensation"]
+      },
+      swd_inductive: {
+        name: "SWD - Inductive Coil (Drum)",
+        frequency: "27.12 MHz",
+        field: "Magnetic Field (Eddy Currents)",
+        applicator: "Inductive Drum Applicator",
+        color: "#10b981",
+        accentClass: "text-emerald-400",
+        depthMin: 5,
+        depthMax: 7,
+        soundPitch: 120,
+        fatAbsorptionCoeff: 0.22,
+        muscleAbsorptionCoeff: 1.05,
+        capsuleAbsorptionCoeff: 0.85,
+        boneReflection: 0.05,
+        safetyTitle: "Inductive SWD Safety & Guidelines",
+        safetyDesc: "Magnetic drum induces circulating eddy currents in conductive tissue (muscle, hematoma, synovium). Minimal risk of subcutaneous fat overheating compared to capacitive plates. Ensure dry toweling to absorb perspiration.",
+        tags: ["No Metal Implants", "Remove Jewelry/Watches", "Dry Towel for Sweat", "Patient Call Bell Required"]
+      },
+      swd_capacitive: {
+        name: "SWD - Capacitive Plates",
+        frequency: "27.12 MHz",
+        field: "Electric Field (Capacitive)",
+        applicator: "Opposing Capacitive Plates",
+        color: "#f59e0b",
+        accentClass: "text-amber-400",
+        depthMin: 3,
+        depthMax: 5,
+        soundPitch: 180,
+        fatAbsorptionCoeff: 1.55,
+        muscleAbsorptionCoeff: 0.65,
+        capsuleAbsorptionCoeff: 0.45,
+        boneReflection: 0.08,
+        safetyTitle: "Capacitive SWD: High Subcutaneous Fat Risk",
+        safetyDesc: "Electric lines of force concentrate across high-resistance adipose tissue. In patients with thicker subcutaneous fat, severe overheating and fat necrosis can occur. Space electrodes equally from skin.",
+        tags: ["Fat Overheating Hazard", "Electrode Spacing Critical", "No Metal Implants", "Skin Thermal Sensation Test"]
+      },
+      mwd: {
+        name: "Microwave Diathermy (MWD)",
+        frequency: "2450 MHz",
+        field: "High-Frequency EM Radiation",
+        applicator: "Directional Horn / Director",
+        color: "#a855f7",
+        accentClass: "text-purple-400",
+        depthMin: 2,
+        depthMax: 3.5,
+        soundPitch: 260,
+        fatAbsorptionCoeff: 0.8,
+        muscleAbsorptionCoeff: 1.3,
+        capsuleAbsorptionCoeff: 0.4,
+        boneReflection: 0.15,
+        safetyTitle: "MWD: Interface Reflection & Hotspots",
+        safetyDesc: "High absorption in water-rich superficial muscle. Significant wave reflection occurs at fat-muscle interface, causing standing wave interference and localized focal burns. Distance applicator ~2.5 - 5 cm with air gap.",
+        tags: ["Standing Wave Hazard", "Interface Reflection", "Remove Contact Lenses", "Eye/Testis Contraindicated"]
+      }
+    };
+
+    /* Simulation State */
+    let currentModalityKey = "us_modal";
+    let isSplitCompare = false;
+    let isRunning = true;
+    let isAudioEnabled = false;
+
+    // Real-world parameters
+    let usFrequency = 1.0; // 1.0 MHz or 3.0 MHz
+    let dutyCyclePercent = 100; // 100, 50, 20, 10
+    let intensityValue = 1.5; // W/cm² for US, or Watts for diathermy
+    let isMovableTransducer = true; // Movable vs Stationary (crucial physical therapy technique)
+    let transducerVelocity = 3.5; // cm/s (1.5, 3.5, 5.5)
+    let couplingQuality = "optimal"; // "optimal" (100%) or "poor" (40% transmission)
+    let towelCondition = "dry"; // "dry" or "sweat"
+
+    let targetTreatmentMinutes = 5.0; // 1 to 15 mins
+    let elapsedMinutes = 5.0; // current accumulated duration
+    let isTimerRunning = false;
+    let timerInterval = null;
+
+    let fatThicknessMm = 12; // 4 to 35 mm
+    let muscleThicknessMm = 35; // mm
+
+    // Transducer animation state
+    let transducerPosFraction = 0.5; // 0.15 to 0.85 of canvas height
+    let transducerDirection = 1;
+    let wavePhase = 0;
+    let isDraggingTransducer = false;
+
+    // Tone.js Synth for clinical modality audio feedback
+    let audioSynth = null;
+
+    function initAudio() {
+      if (!audioSynth && window.Tone) {
+        audioSynth = new Tone.Oscillator({
+          frequency: 440,
+          type: "sine",
+          volume: -26
+        }).toDestination();
+      }
+    }
+
+    function updateAudioTone() {
+      if (!isAudioEnabled || !audioSynth) return;
+      const mod = MODALITY_DATA[currentModalityKey];
+      let pitch = mod.soundPitch;
+      if (currentModalityKey === "us_modal") {
+        pitch = usFrequency === 3.0 ? 660 : 440;
+      }
+      if (dutyCyclePercent < 100) {
+        pitch *= 0.8;
+      }
+      audioSynth.frequency.rampTo(pitch, 0.1);
+    }
+
+    /* Canvas references & resizing */
+    const canvas = document.getElementById("simCanvas");
+    const ctx = canvas.getContext("2d");
+    const compareCanvas = document.getElementById("compareCanvas");
+    const compareCtx = compareCanvas.getContext("2d");
+
+    function resizeCanvases() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      if (isSplitCompare) {
+        const cRect = compareCanvas.getBoundingClientRect();
+        compareCanvas.width = cRect.width * dpr;
+        compareCanvas.height = cRect.height * dpr;
+        compareCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+    }
+
+    window.addEventListener("resize", () => {
+      resizeCanvases();
+      updateThermalCalculations();
+    });
+
+    /* Modality selection handler */
+    const modalityBtns = document.querySelectorAll(".modality-select-btn");
+    modalityBtns.forEach(btn => {
+      btn.addEventListener("click", () => {
+        modalityBtns.forEach(b => {
+          b.classList.remove("active", "border-sky-500/60", "bg-sky-950/40", "border-emerald-500/50", "bg-emerald-950/30", "border-amber-500/50", "bg-amber-950/30", "border-purple-500/50", "bg-purple-950/30");
+          b.classList.add("border-slate-800", "bg-slate-800/40");
+        });
+
+        currentModalityKey = btn.getAttribute("data-modality");
+        btn.classList.add("active");
+        btn.classList.remove("border-slate-800", "bg-slate-800/40");
+
+        if (currentModalityKey === "us_modal") btn.classList.add("border-sky-500/60", "bg-sky-950/40");
+        else if (currentModalityKey === "swd_inductive") btn.classList.add("border-emerald-500/50", "bg-emerald-950/30");
+        else if (currentModalityKey === "swd_capacitive") btn.classList.add("border-amber-500/50", "bg-amber-950/30");
+        else if (currentModalityKey === "mwd") btn.classList.add("border-purple-500/50", "bg-purple-950/30");
+
+        syncModalityUI();
+        updateAudioTone();
+        updateThermalCalculations();
+      });
+    });
+
+    function syncModalityUI() {
+      const isUS = currentModalityKey === "us_modal";
+      const usSection = document.getElementById("usControlsSection");
+      const diaSection = document.getElementById("diathermyControlsSection");
+      const intLabel = document.getElementById("intensityLabel");
+      const intMinLabel = document.getElementById("intMinLabel");
+      const intMidLabel = document.getElementById("intMidLabel");
+      const intMaxLabel = document.getElementById("intMaxLabel");
+      const acousticPowerOutput = document.getElementById("acousticPowerOutput");
+      const intensitySlider = document.getElementById("intensitySlider");
+
+      if (isUS) {
+        usSection.classList.remove("hidden");
+        diaSection.classList.add("hidden");
+        intLabel.textContent = "Ultrasound Intensity (SATA)";
+        intensitySlider.min = "0.2";
+        intensitySlider.max = "2.8";
+        intensitySlider.step = "0.1";
+        if (intensityValue > 2.8 || intensityValue < 0.2) intensityValue = 1.5;
+        intensitySlider.value = intensityValue;
+        intMinLabel.textContent = "0.2 W/cm² (Acute)";
+        intMidLabel.textContent = "1.5 W/cm² (Thermal)";
+        intMaxLabel.textContent = "2.5+ W/cm² (Danger)";
+        acousticPowerOutput.classList.remove("hidden");
+      } else {
+        usSection.classList.add("hidden");
+        diaSection.classList.remove("hidden");
+        intLabel.textContent = "Diathermy Power Output (Watts)";
+        intensitySlider.min = "10";
+        intensitySlider.max = "180";
+        intensitySlider.step = "5";
+        if (intensityValue < 10) intensityValue = 60;
+        intensitySlider.value = intensityValue;
+        intMinLabel.textContent = "10W (Dose I)";
+        intMidLabel.textContent = "60W (Dose III)";
+        intMaxLabel.textContent = "150W (Dose IV)";
+        acousticPowerOutput.classList.add("hidden");
+      }
+
+      updateModalityHeadings();
+    }
+
+    function updateModalityHeadings() {
+      const mod = MODALITY_DATA[currentModalityKey];
+      const simTitle = document.getElementById("simTitle");
+      const simSubtitle = document.getElementById("simSubtitle");
+      const statusIcon = document.getElementById("modalityStatusIcon");
+      const appLabel = document.getElementById("applicatorLabel");
+
+      if (currentModalityKey === "us_modal") {
+        simTitle.textContent = `Therapeutic Ultrasound (${usFrequency.toFixed(1)} MHz ${dutyCyclePercent === 100 ? 'Continuous' : 'Pulsed ' + dutyCyclePercent + '%'})`;
+        simSubtitle.textContent = `Penetration: ${usFrequency === 1.0 ? '3.5 - 5.0 cm (Deep)' : '1.0 - 2.5 cm (Superficial)'} • Technique: ${isMovableTransducer ? 'Movable (' + transducerVelocity + ' cm/s)' : 'STATIONARY (HAZARD)'}`;
+        appLabel.textContent = isMovableTransducer ? `Moving Transducer (${transducerVelocity} cm/s)` : `STATIONARY HEAD (HOT SPOT RISK!)`;
+        statusIcon.style.backgroundColor = isMovableTransducer ? "#38bdf8" : "#ef4444";
+      } else {
+        simTitle.textContent = `${mod.name} (${mod.frequency})`;
+        simSubtitle.textContent = `Depth: ${mod.depthMin} - ${mod.depthMax} cm • Mechanism: ${mod.field}`;
+        appLabel.textContent = mod.applicator;
+        statusIcon.style.backgroundColor = mod.color;
+      }
+    }
+
+    /* Ultrasound Frequency Controls (1 MHz vs 3 MHz) */
+    const btnFreq1 = document.getElementById("btnFreq1");
+    const btnFreq3 = document.getElementById("btnFreq3");
+    const usFreqBadge = document.getElementById("usFreqBadge");
+    const freqClinicalHint = document.getElementById("freqClinicalHint");
+
+    btnFreq1.addEventListener("click", () => {
+      usFrequency = 1.0;
+      btnFreq1.className = "py-1.5 px-2 text-xs font-semibold rounded-lg bg-sky-600 text-white border border-sky-400/40 shadow-sm transition";
+      btnFreq3.className = "py-1.5 px-2 text-xs font-semibold rounded-lg bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition";
+      usFreqBadge.textContent = "1.0 MHz (Deep Target: 3 - 5 cm)";
+      usFreqBadge.className = "text-[11px] font-mono-code px-2 py-0.5 rounded bg-sky-950 text-sky-400 border border-sky-800";
+      freqClinicalHint.textContent = "1.0 MHz penetrates deeply with minimal superficial absorption. Ideal for deep muscle belly, capsule, and periarticular hip/knee.";
+      updateModalityHeadings();
+      updateAudioTone();
+      updateThermalCalculations();
+    });
+
+    btnFreq3.addEventListener("click", () => {
+      usFrequency = 3.0;
+      btnFreq3.className = "py-1.5 px-2 text-xs font-semibold rounded-lg bg-cyan-600 text-white border border-cyan-400/40 shadow-sm transition";
+      btnFreq1.className = "py-1.5 px-2 text-xs font-semibold rounded-lg bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition";
+      usFreqBadge.textContent = "3.0 MHz (Superficial: 1 - 2.5 cm)";
+      usFreqBadge.className = "text-[11px] font-mono-code px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800";
+      freqClinicalHint.textContent = "3.0 MHz absorbs 3x faster in superficial tissue. Ideal for superficial tendons (patellar, epicondyles) with rapid heating rate.";
+      updateModalityHeadings();
+      updateAudioTone();
+      updateThermalCalculations();
+    });
+
+    /* Ultrasound Transducer Movable Mode Controls */
+    const btnTransducerMoving = document.getElementById("btnTransducerMoving");
+    const btnTransducerStationary = document.getElementById("btnTransducerStationary");
+    const transducerBadge = document.getElementById("transducerBadge");
+    const movementClinicalNote = document.getElementById("movementClinicalNote");
+    const movementSpeedContainer = document.getElementById("movementSpeedContainer");
+    const canvasBurnWarning = document.getElementById("canvasBurnWarning");
+
+    btnTransducerMoving.addEventListener("click", () => {
+      isMovableTransducer = true;
+      btnTransducerMoving.className = "py-1.5 px-2 text-xs font-semibold rounded-lg bg-emerald-600 text-white border border-emerald-400/40 shadow-sm transition flex items-center justify-center gap-1";
+      btnTransducerStationary.className = "py-1.5 px-2 text-xs font-semibold rounded-lg bg-slate-800 text-slate-400 hover:text-rose-300 border border-slate-700 transition flex items-center justify-center gap-1";
+      transducerBadge.textContent = "MOVABLE MODE (Continuous Stroke)";
+      transducerBadge.className = "text-[10px] font-mono-code font-bold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800";
+      movementClinicalNote.textContent = "Moving transducer at 3-4 cm/s disperses acoustic hot spots and prevents standing waves at the bone periosteum.";
+      movementClinicalNote.className = "text-[11px] text-emerald-300/90 leading-tight";
+      movementSpeedContainer.classList.remove("opacity-40", "pointer-events-none");
+      canvasBurnWarning.classList.add("hidden");
+      updateModalityHeadings();
+      updateThermalCalculations();
+    });
+
+    btnTransducerStationary.addEventListener("click", () => {
+      isMovableTransducer = false;
+      btnTransducerStationary.className = "py-1.5 px-2 text-xs font-semibold rounded-lg bg-rose-600 text-white border border-rose-400 shadow-sm transition flex items-center justify-center gap-1 animate-pulse";
+      btnTransducerMoving.className = "py-1.5 px-2 text-xs font-semibold rounded-lg bg-slate-800 text-slate-400 hover:text-emerald-300 border border-slate-700 transition flex items-center justify-center gap-1";
+      transducerBadge.textContent = "STATIONARY (CRITICAL BURN HAZARD)";
+      transducerBadge.className = "text-[10px] font-mono-code font-bold px-2 py-0.5 rounded-full bg-rose-950 text-rose-300 border border-rose-700 animate-pulse";
+      movementClinicalNote.textContent = "DANGER: Stationary ultrasound produces acoustic standing waves. Periosteal bone rapidly overheats, causing excruciating pain and bone burns!";
+      movementClinicalNote.className = "text-[11px] text-rose-300 font-semibold leading-tight";
+      movementSpeedContainer.classList.add("opacity-40", "pointer-events-none");
+      canvasBurnWarning.classList.remove("hidden");
+      updateModalityHeadings();
+      updateThermalCalculations();
+    });
+
+    /* Velocity buttons */
+    const speedSlow = document.getElementById("speedSlow");
+    const speedNorm = document.getElementById("speedNorm");
+    const speedFast = document.getElementById("speedFast");
+
+    [
+      { btn: speedSlow, val: 1.5 },
+      { btn: speedNorm, val: 3.5 },
+      { btn: speedFast, val: 5.5 }
+    ].forEach(item => {
+      item.btn.addEventListener("click", () => {
+        transducerVelocity = item.val;
+        [speedSlow, speedNorm, speedFast].forEach(b => {
+          b.className = "px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 hover:border-slate-600";
+        });
+        item.btn.className = "px-2 py-0.5 rounded bg-sky-700 text-white border border-sky-500 font-medium";
+        updateModalityHeadings();
+        updateThermalCalculations();
+      });
+    });
+
+    /* Coupling and Towel Selects */
+    document.getElementById("couplingSelect").addEventListener("change", (e) => {
+      couplingQuality = e.target.value;
+      updateThermalCalculations();
+    });
+
+    document.getElementById("towelSelect").addEventListener("change", (e) => {
+      towelCondition = e.target.value;
+      updateThermalCalculations();
+    });
+
+    /* Duty Cycle Buttons */
+    const dutyBtns = [
+      { id: "btnDuty100", val: 100, label: "Continuous (100% Thermal)" },
+      { id: "btnDuty50", val: 50, label: "Pulsed 50% (Mild Thermal)" },
+      { id: "btnDuty20", val: 20, label: "Pulsed 20% (Non-Thermal Repair)" },
+      { id: "btnDuty10", val: 10, label: "Pulsed 10% (Cellular Healing)" }
+    ];
+
+    dutyBtns.forEach(d => {
+      const el = document.getElementById(d.id);
+      el.addEventListener("click", () => {
+        dutyCyclePercent = d.val;
+        dutyBtns.forEach(other => {
+          const oEl = document.getElementById(other.id);
+          oEl.className = "duty-btn py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition";
+        });
+        el.className = "duty-btn py-1.5 text-xs font-semibold rounded-lg bg-sky-600 text-white border border-sky-400/40 shadow-sm transition";
+        const dutyBadge = document.getElementById("dutyCycleBadge");
+        dutyBadge.textContent = d.label;
+        if (d.val === 100) dutyBadge.className = "text-[11px] font-mono-code px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800";
+        else if (d.val === 50) dutyBadge.className = "text-[11px] font-mono-code px-2 py-0.5 rounded-full bg-sky-950 text-sky-400 border border-sky-800";
+        else dutyBadge.className = "text-[11px] font-mono-code px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800";
+
+        updateModalityHeadings();
+        updateAudioTone();
+        updateThermalCalculations();
+      });
+    });
+
+    /* Intensity Slider */
+    const intensitySlider = document.getElementById("intensitySlider");
+    const intensityValText = document.getElementById("intensityValText");
+    const totalPowerWatts = document.getElementById("totalPowerWatts");
+
+    intensitySlider.addEventListener("input", (e) => {
+      intensityValue = parseFloat(e.target.value);
+      if (currentModalityKey === "us_modal") {
+        const category = intensityValue <= 0.5 ? "Sub-thermal" : intensityValue <= 1.2 ? "Mild Thermal" : intensityValue <= 2.0 ? "Moderate Thermal" : "Vigorous / High Risk";
+        intensityValText.textContent = `${intensityValue.toFixed(2)} W/cm² (${category})`;
+        const totalW = (intensityValue * 5.0).toFixed(1);
+        totalPowerWatts.textContent = `Total Power: ${totalW} Watts`;
+      } else {
+        const category = intensityValue <= 25 ? "Dose I (Sub-thermal)" : intensityValue <= 50 ? "Dose II (Low Heat)" : intensityValue <= 100 ? "Dose III (Medium Heat)" : "Dose IV (Vigorous)";
+        intensityValText.textContent = `${intensityValue.toFixed(0)} Watts (${category})`;
+      }
+      updateThermalCalculations();
+    });
+
+    /* Treatment Time Duration & Timer Controls */
+    const timeSlider = document.getElementById("timeSlider");
+    const timeValText = document.getElementById("timeValText");
+    const elapsedClockText = document.getElementById("elapsedClockText");
+    const btnPlayTimer = document.getElementById("btnPlayTimer");
+    const timerIcon = document.getElementById("timerIcon");
+    const timerBtnText = document.getElementById("timerBtnText");
+    const btnResetTimer = document.getElementById("btnResetTimer");
+
+    timeSlider.addEventListener("input", (e) => {
+      targetTreatmentMinutes = parseFloat(e.target.value);
+      timeValText.textContent = `${targetTreatmentMinutes.toFixed(1)} min (Target)`;
+      if (!isTimerRunning) {
+        elapsedMinutes = targetTreatmentMinutes;
+      }
+      updateElapsedDisplay();
+      updateThermalCalculations();
+    });
+
+    function updateElapsedDisplay() {
+      elapsedClockText.textContent = `Elapsed: ${elapsedMinutes.toFixed(1)} / ${targetTreatmentMinutes.toFixed(1)} min`;
+    }
+
+    btnPlayTimer.addEventListener("click", () => {
+      isTimerRunning = !isTimerRunning;
+      if (isTimerRunning) {
+        timerBtnText.textContent = "Pause Timer";
+        timerIcon.setAttribute("data-lucide", "pause");
+        if (elapsedMinutes >= targetTreatmentMinutes) {
+          elapsedMinutes = 0;
+        }
+        timerInterval = setInterval(() => {
+          if (elapsedMinutes < targetTreatmentMinutes) {
+            elapsedMinutes = Math.min(targetTreatmentMinutes, elapsedMinutes + 0.1);
+            updateElapsedDisplay();
+            updateThermalCalculations();
+          } else {
+            clearInterval(timerInterval);
+            isTimerRunning = false;
+            timerBtnText.textContent = "Run Session";
+            timerIcon.setAttribute("data-lucide", "play");
+            lucide.createIcons();
+          }
+        }, 300);
+      } else {
+        clearInterval(timerInterval);
+        timerBtnText.textContent = "Resume Timer";
+        timerIcon.setAttribute("data-lucide", "play");
+      }
+      lucide.createIcons();
+    });
+
+    btnResetTimer.addEventListener("click", () => {
+      clearInterval(timerInterval);
+      isTimerRunning = false;
+      elapsedMinutes = targetTreatmentMinutes;
+      timerBtnText.textContent = "Run Session";
+      timerIcon.setAttribute("data-lucide", "play");
+      lucide.createIcons();
+      updateElapsedDisplay();
+      updateThermalCalculations();
+    });
+
+    /* Fat Slider */
+    const fatSlider = document.getElementById("fatSlider");
+    const fatValText = document.getElementById("fatValText");
+    const fatImpactNote = document.getElementById("fatImpactNote");
+
+    fatSlider.addEventListener("input", (e) => {
+      fatThicknessMm = parseInt(e.target.value);
+      fatValText.textContent = `${fatThicknessMm} mm (${fatThicknessMm < 8 ? 'Athletic' : fatThicknessMm > 22 ? 'Thick / Obese' : 'Average'})`;
+
+      if (currentModalityKey === "swd_capacitive" && fatThicknessMm > 18) {
+        fatImpactNote.textContent = "CRITICAL HAZARD: Capacitive SWD electric lines concentrate across thick adipose tissue, risking severe subcutaneous fat necrosis!";
+        fatImpactNote.className = "text-[11px] text-rose-300 bg-rose-950/60 border border-rose-700 p-2 rounded-lg font-semibold animate-pulse";
+      } else if (currentModalityKey === "mwd" && fatThicknessMm > 15) {
+        fatImpactNote.textContent = "Interface Hazard: High reflection at the thick fat-muscle boundary promotes standing waves and hotspot burns.";
+        fatImpactNote.className = "text-[11px] text-purple-300 bg-purple-950/40 border border-purple-800/60 p-2 rounded-lg";
+      } else if (currentModalityKey === "swd_inductive") {
+        fatImpactNote.textContent = "Advantage of Inductive SWD: Magnetic field readily crosses fat without resistance, targeting deep vascular muscle.";
+        fatImpactNote.className = "text-[11px] text-emerald-300 bg-emerald-950/30 border border-emerald-800/50 p-2 rounded-lg";
+      } else {
+        fatImpactNote.textContent = "Ultrasound: Acoustic impedance in adipose tissue is low, allowing ultrasound to penetrate smoothly to muscle.";
+        fatImpactNote.className = "text-[11px] text-sky-300 bg-sky-950/30 border border-sky-800/50 p-2 rounded-lg";
+      }
+
+      updateThermalCalculations();
+    });
+
+    /* Preset Selection Handler */
+    document.getElementById("presetSelect").addEventListener("change", (e) => {
+      const preset = e.target.value;
+      if (!preset) return;
+
+      if (preset === "preset_capsule") {
+        // US 1MHz continuous, moving, 1.5 W/cm², 6 mins
+        document.querySelector("[data-modality='us_modal']").click();
+        btnFreq1.click();
+        btnDuty100.click();
+        btnTransducerMoving.click();
+        intensitySlider.value = 1.6;
+        intensitySlider.dispatchEvent(new Event("input"));
+        timeSlider.value = 6;
+        timeSlider.dispatchEvent(new Event("input"));
+      } else if (preset === "preset_patellar") {
+        // US 3MHz, 1.0 W/cm², moving, 4 mins
+        document.querySelector("[data-modality='us_modal']").click();
+        btnFreq3.click();
+        btnDuty100.click();
+        btnTransducerMoving.click();
+        intensitySlider.value = 1.0;
+        intensitySlider.dispatchEvent(new Event("input"));
+        timeSlider.value = 4;
+        timeSlider.dispatchEvent(new Event("input"));
+      } else if (preset === "preset_us_stationary") {
+        // Stationary hazard preset!
+        document.querySelector("[data-modality='us_modal']").click();
+        btnFreq1.click();
+        btnDuty100.click();
+        btnTransducerStationary.click();
+        intensitySlider.value = 2.0;
+        intensitySlider.dispatchEvent(new Event("input"));
+        timeSlider.value = 5;
+        timeSlider.dispatchEvent(new Event("input"));
+      } else if (preset === "preset_swd_muscle") {
+        // SWD inductive
+        document.querySelector("[data-modality='swd_inductive']").click();
+        btnDuty100.click();
+        intensitySlider.value = 80;
+        intensitySlider.dispatchEvent(new Event("input"));
+        timeSlider.value = 12;
+        timeSlider.dispatchEvent(new Event("input"));
+      } else if (preset === "preset_swd_fat_burn") {
+        // Capacitive SWD with thick fat
+        document.querySelector("[data-modality='swd_capacitive']").click();
+        fatSlider.value = 26;
+        fatSlider.dispatchEvent(new Event("input"));
+        btnDuty100.click();
+        intensitySlider.value = 110;
+        intensitySlider.dispatchEvent(new Event("input"));
+        timeSlider.value = 10;
+        timeSlider.dispatchEvent(new Event("input"));
+      }
+      e.target.value = "";
+    });
+
+    /* Reset Defaults */
+    document.getElementById("resetDefaultsBtn").addEventListener("click", () => {
+      document.querySelector("[data-modality='us_modal']").click();
+      btnFreq1.click();
+      btnTransducerMoving.click();
+      btnDuty100.click();
+      speedNorm.click();
+      fatSlider.value = 12;
+      fatThicknessMm = 12;
+      fatSlider.dispatchEvent(new Event("input"));
+      intensitySlider.value = 1.5;
+      intensitySlider.dispatchEvent(new Event("input"));
+      timeSlider.value = 5.0;
+      timeSlider.dispatchEvent(new Event("input"));
+      document.getElementById("couplingSelect").value = "optimal";
+      couplingQuality = "optimal";
+      document.getElementById("towelSelect").value = "dry";
+      towelCondition = "dry";
+      clearInterval(timerInterval);
+      isTimerRunning = false;
+      timerBtnText.textContent = "Run Session";
+      timerIcon.setAttribute("data-lucide", "play");
+      lucide.createIcons();
+      updateThermalCalculations();
+    });
+
+    /* Audio Toggle */
+    const audioToggleBtn = document.getElementById("audioToggleBtn");
+    const audioIcon = document.getElementById("audioIcon");
+    const audioText = document.getElementById("audioText");
+    audioToggleBtn.addEventListener("click", async () => {
+      initAudio();
+      if (Tone.context.state !== 'running') {
+        await Tone.start();
+      }
+      isAudioEnabled = !isAudioEnabled;
+      if (isAudioEnabled) {
+        audioSynth.start();
+        updateAudioTone();
+        audioText.textContent = "Hum: On";
+        audioIcon.setAttribute("data-lucide", "volume-2");
+        audioToggleBtn.classList.replace("bg-slate-800", "bg-emerald-900/60");
+        audioToggleBtn.classList.replace("border-slate-700", "border-emerald-600");
+      } else {
+        audioSynth.stop();
+        audioText.textContent = "Modality Audio";
+        audioIcon.setAttribute("data-lucide", "volume-x");
+        audioToggleBtn.classList.replace("bg-emerald-900/60", "bg-slate-800");
+        audioToggleBtn.classList.replace("border-emerald-600", "border-slate-700");
+      }
+      lucide.createIcons();
+    });
+
+    /* Play/Pause Main Animation */
+    const togglePlayBtn = document.getElementById("togglePlayBtn");
+    const playIcon = document.getElementById("playIcon");
+    const playText = document.getElementById("playText");
+    togglePlayBtn.addEventListener("click", () => {
+      isRunning = !isRunning;
+      if (isRunning) {
+        playText.textContent = "Pause";
+        playIcon.setAttribute("data-lucide", "pause");
+      } else {
+        playText.textContent = "Resume";
+        playIcon.setAttribute("data-lucide", "play");
+      }
+      lucide.createIcons();
+    });
+
+    /* Split Compare View Mode */
+    const viewModeBtn = document.getElementById("viewModeBtn");
+    const splitCompareContainer = document.getElementById("splitCompareContainer");
+    viewModeBtn.addEventListener("click", () => {
+      isSplitCompare = !isSplitCompare;
+      if (isSplitCompare) {
+        splitCompareContainer.classList.remove("hidden");
+        viewModeBtn.innerHTML = `<i data-lucide="eye" class="w-3.5 h-3.5"></i> Single View`;
+      } else {
+        splitCompareContainer.classList.add("hidden");
+        viewModeBtn.innerHTML = `<i data-lucide="columns" class="w-3.5 h-3.5"></i> Split Compare`;
+      }
+      lucide.createIcons();
+      resizeCanvases();
+      updateThermalCalculations();
+    });
+
+    /* Clinical Guide Modal */
+    const clinicalGuideBtn = document.getElementById("clinicalGuideBtn");
+    const guideModal = document.getElementById("guideModal");
+    const closeGuideBtn = document.getElementById("closeGuideBtn");
+    const dismissGuideBtn = document.getElementById("dismissGuideBtn");
+
+    const toggleGuide = (show) => {
+      if (show) guideModal.classList.remove("hidden");
+      else guideModal.classList.add("hidden");
+    };
+    clinicalGuideBtn.addEventListener("click", () => toggleGuide(true));
+    closeGuideBtn.addEventListener("click", () => toggleGuide(false));
+    dismissGuideBtn.addEventListener("click", () => toggleGuide(false));
+
+    /* Anatomic Layer Geometry Calculations */
+    function getLayerBoundaries(canvasWidth) {
+      const totalDepthMm = 80;
+      const skinMm = 2;
+      const fatMm = fatThicknessMm;
+      const muscleMm = muscleThicknessMm;
+      const capsuleMm = 12;
+
+      const xSkin = (skinMm / totalDepthMm) * canvasWidth;
+      const xFat = ((skinMm + fatMm) / totalDepthMm) * canvasWidth;
+      const xMuscle = ((skinMm + fatMm + muscleMm) / totalDepthMm) * canvasWidth;
+      const xCapsule = ((skinMm + fatMm + muscleMm + capsuleMm) / totalDepthMm) * canvasWidth;
+
+      return {
+        skin: xSkin,
+        fat: xFat,
+        muscle: xMuscle,
+        capsule: xCapsule,
+        totalWidth: canvasWidth
+      };
+    }
+
+    /* Live Comprehensive Thermal & Biological Calculations */
+    let layerTemperatures = {
+      skin: 37.0,
+      fat: 37.0,
+      muscle: 37.0,
+      capsule: 37.0,
+      bone: 37.0
+    };
+
+    function updateThermalCalculations() {
+      const mod = MODALITY_DATA[currentModalityKey];
+      const isUS = currentModalityKey === "us_modal";
+
+      // Time saturation factor: T(t) = 1 - exp(-t / tau), tau ~ 3.0 min
+      const timeFactor = 1.0 - Math.exp(-elapsedMinutes / 2.8);
+
+      // Duty cycle factor
+      const dutyFactor = dutyCyclePercent / 100.0;
+
+      // Effective power factor
+      let powerFactor = 1.0;
+      if (isUS) {
+        const couplingFactor = couplingQuality === "optimal" ? 1.0 : 0.45;
+        powerFactor = (intensityValue / 1.5) * couplingFactor;
+      } else {
+        const towelRiskFactor = towelCondition === "sweat" ? 1.4 : 1.0;
+        powerFactor = (intensityValue / 60.0) * towelRiskFactor;
+      }
+
+      // Transducer movement factor
+      let movementDispersionFactor = 1.0;
+      let stationaryBoneHazardSpike = 0.0;
+      let stationarySkinSpike = 0.0;
+
+      if (isUS) {
+        if (!isMovableTransducer) {
+          // Stationary head! Severe local concentration
+          movementDispersionFactor = 2.4;
+          // Bone standing wave reflection: 35% reflection in phase
+          stationaryBoneHazardSpike = 5.2 * (intensityValue / 1.5) * dutyFactor * timeFactor;
+          stationarySkinSpike = 2.8 * (intensityValue / 1.5) * dutyFactor * timeFactor;
+        } else {
+          // Moving: dispersion depends on velocity
+          const speedFactor = transducerVelocity === 1.5 ? 1.15 : transducerVelocity === 5.5 ? 0.85 : 1.0;
+          movementDispersionFactor = 0.85 * speedFactor;
+        }
+      }
+
+      // Basal temperatures (°C)
+      const basal = {
+        skin: 34.5,
+        fat: 35.8,
+        muscle: 37.0,
+        capsule: 37.0,
+        bone: 37.0
+      };
+
+      let deltaT = { skin: 0, fat: 0, muscle: 0, capsule: 0, bone: 0 };
+
+      if (isUS) {
+        if (usFrequency === 1.0) {
+          // 1 MHz: Deep penetration, low fat absorption, high collagen absorption, bone reflection
+          deltaT.skin = (1.2 * powerFactor * dutyFactor * timeFactor * movementDispersionFactor) + stationarySkinSpike;
+          deltaT.fat = 0.8 * powerFactor * dutyFactor * timeFactor * movementDispersionFactor;
+          deltaT.muscle = 3.6 * powerFactor * dutyFactor * timeFactor * movementDispersionFactor;
+          deltaT.capsule = 4.4 * powerFactor * dutyFactor * timeFactor * movementDispersionFactor;
+          deltaT.bone = (2.2 * powerFactor * dutyFactor * timeFactor * movementDispersionFactor) + stationaryBoneHazardSpike;
+        } else {
+          // 3 MHz: Superficial rapid heating (3x rate in superficial 1-2.5 cm)
+          deltaT.skin = (2.8 * powerFactor * dutyFactor * timeFactor * movementDispersionFactor) + stationarySkinSpike;
+          deltaT.fat = 1.6 * powerFactor * dutyFactor * timeFactor * movementDispersionFactor;
+          deltaT.muscle = 4.2 * powerFactor * dutyFactor * timeFactor * movementDispersionFactor;
+          deltaT.capsule = 1.2 * powerFactor * dutyFactor * timeFactor * movementDispersionFactor;
+          deltaT.bone = 0.5 * powerFactor * dutyFactor * timeFactor * movementDispersionFactor;
+        }
+      } else if (currentModalityKey === "swd_inductive") {
+        // High muscle eddy currents, fat spared
+        const sweatSpike = towelCondition === "sweat" ? 3.5 : 0;
+        deltaT.skin = (1.0 + sweatSpike) * powerFactor * dutyFactor * timeFactor;
+        deltaT.fat = 0.9 * powerFactor * dutyFactor * timeFactor;
+        deltaT.muscle = 4.5 * powerFactor * dutyFactor * timeFactor;
+        deltaT.capsule = 3.4 * powerFactor * dutyFactor * timeFactor;
+        deltaT.bone = 0.8 * powerFactor * dutyFactor * timeFactor;
+      } else if (currentModalityKey === "swd_capacitive") {
+        // High fat resistance heating! Risk increases with fat thickness
+        const fatRiskMultiplier = 1.0 + (fatThicknessMm / 15.0) * 0.9;
+        deltaT.skin = 2.4 * powerFactor * dutyFactor * timeFactor;
+        deltaT.fat = 5.2 * powerFactor * dutyFactor * timeFactor * fatRiskMultiplier;
+        deltaT.muscle = 2.2 * powerFactor * dutyFactor * timeFactor;
+        deltaT.capsule = 1.1 * powerFactor * dutyFactor * timeFactor;
+        deltaT.bone = 0.4 * powerFactor * dutyFactor * timeFactor;
+      } else if (currentModalityKey === "mwd") {
+        // High reflection at fat-muscle interface
+        const interfaceReflect = fatThicknessMm > 15 ? 1.6 : 1.1;
+        deltaT.skin = 2.1 * powerFactor * dutyFactor * timeFactor;
+        deltaT.fat = 2.8 * powerFactor * dutyFactor * timeFactor;
+        deltaT.muscle = 4.2 * powerFactor * dutyFactor * timeFactor * interfaceReflect;
+        deltaT.capsule = 1.2 * powerFactor * dutyFactor * timeFactor;
+        deltaT.bone = 0.5 * powerFactor * dutyFactor * timeFactor;
+      }
+
+      // Calculate absolute temperatures
+      layerTemperatures = {
+        skin: Math.min(52.0, basal.skin + deltaT.skin),
+        fat: Math.min(52.0, basal.fat + deltaT.fat),
+        muscle: Math.min(52.0, basal.muscle + deltaT.muscle),
+        capsule: Math.min(52.0, basal.capsule + deltaT.capsule),
+        bone: Math.min(52.0, basal.bone + deltaT.bone)
+      };
+
+      updateTissueStatusUI();
+      updateThermalProfileSVG();
+      checkClinicalHazards();
+    }
+
+    /* Update Physiological Tissue Cards */
+    function updateTissueStatusUI() {
+      const getStatus = (temp, layer) => {
+        if (layer === "bone") {
+          if (temp >= 43.5) return { badge: "PERIOSTEAL BURN!", class: "bg-rose-950 text-rose-300 border-rose-600 animate-pulse font-bold", desc: "Acoustic standing wave periosteal pain & bone burn" };
+          if (temp >= 41.0) return { badge: "Periosteal Heat Warning", class: "bg-amber-950 text-amber-300 border-amber-700", desc: "High acoustic reflection off cortical bone" };
+          return { badge: "Safe (<39°C)", class: "bg-emerald-950 text-emerald-400 border-emerald-800", desc: "Within safe biological limits" };
+        }
+        if (layer === "fat") {
+          if (temp >= 43.0) return { badge: "FAT NECROSIS RISK", class: "bg-rose-950 text-rose-300 border-rose-600 animate-pulse font-bold", desc: "Excessive adipose overheating; high necrosis hazard" };
+          if (temp >= 40.5) return { badge: "Elevated Fat Heat", class: "bg-amber-950 text-amber-300 border-amber-700", desc: "Approaching adipose tolerance limit" };
+          return { badge: "Normal Adipose", class: "bg-emerald-950 text-emerald-400 border-emerald-800", desc: "Low acoustic attenuation / normal state" };
+        }
+        if (layer === "skin") {
+          if (temp >= 44.0) return { badge: "SKIN BURN / BLISTER", class: "bg-rose-950 text-rose-300 border-rose-600 animate-pulse font-bold", desc: "Cutaneous pain threshold exceeded; burn blistering risk" };
+          if (temp >= 41.0) return { badge: "Erythema / Flushing", class: "bg-amber-950 text-amber-300 border-amber-700", desc: "Pronounced vasodilation & warming" };
+          return { badge: "Normal Surface", class: "bg-slate-800 text-slate-300 border-slate-700", desc: "Safe epidermal temperature" };
+        }
+        if (layer === "muscle") {
+          if (temp >= 44.0) return { badge: "OVERHEATING (>44°C)", class: "bg-rose-950 text-rose-300 border-rose-600 font-bold", desc: "Risk of protein denaturation" };
+          if (temp >= 40.0) return { badge: "Vigorous Thermal", class: "bg-sky-950 text-sky-300 border-sky-800", desc: "Optimal therapeutic window for stretching & spasm relief" };
+          if (temp >= 38.5) return { badge: "Moderate Warming", class: "bg-emerald-950 text-emerald-300 border-emerald-800", desc: "Pain reduction & blood flow acceleration" };
+          return { badge: "Mild / Sub-acute", class: "bg-slate-800 text-slate-300 border-slate-700", desc: "Cellular repair & metabolic stimulation" };
+        }
+        if (layer === "capsule") {
+          if (temp >= 43.5) return { badge: "Collagen Plastic Window", class: "bg-cyan-950 text-cyan-300 border-cyan-800 font-semibold", desc: "Maximum viscoelastic elongation for adhesive capsulitis" };
+          if (temp >= 40.0) return { badge: "Deep Heat Target", class: "bg-sky-950 text-sky-300 border-sky-800", desc: "Dense collagen acoustic absorption" };
+          return { badge: "Baseline", class: "bg-slate-800 text-slate-300 border-slate-700", desc: "Mild thermal penetration" };
+        }
+      };
+
+      const setCard = (prefix, temp, layer) => {
+        const tempEl = document.getElementById(`${prefix}TempVal`);
+        const badgeEl = document.getElementById(`${prefix}StateBadge`);
+        const descEl = document.getElementById(`${prefix}EffectDesc`);
+        const cardEl = document.getElementById(`${prefix}StatusCard`);
+
+        tempEl.textContent = `${temp.toFixed(1)} °C`;
+        const st = getStatus(temp, layer);
+        badgeEl.textContent = st.badge;
+        badgeEl.className = `text-[10px] px-2 py-0.5 rounded font-mono-code border ${st.class}`;
+        descEl.textContent = st.desc;
+
+        if (st.badge.includes("BURN") || st.badge.includes("NECROSIS")) {
+          cardEl.classList.add("burn-flash");
+          tempEl.className = "font-mono-code text-rose-400 font-bold block text-sm";
+        } else {
+          cardEl.classList.remove("burn-flash");
+          tempEl.className = `font-mono-code ${layer === 'fat' ? 'text-amber-400' : layer === 'muscle' ? 'text-rose-400' : layer === 'capsule' ? 'text-cyan-400' : 'text-slate-200'} font-bold block`;
+        }
+      };
+
+      setCard("skin", layerTemperatures.skin, "skin");
+      setCard("fat", layerTemperatures.fat, "fat");
+      setCard("muscle", layerTemperatures.muscle, "muscle");
+      setCard("capsule", layerTemperatures.capsule, "capsule");
+      setCard("bone", layerTemperatures.bone, "bone");
+    }
+
+    /* Clinical Hazard Detection & Prominent Banner Display */
+    function checkClinicalHazards() {
+      const hazardBanner = document.getElementById("hazardBanner");
+      const hazardMessage = document.getElementById("hazardMessage");
+      const hazardAction = document.getElementById("hazardAction");
+
+      let hazard = null;
+
+      if (layerTemperatures.bone >= 43.0 && currentModalityKey === "us_modal" && !isMovableTransducer) {
+        hazard = {
+          msg: "CRITICAL HAZARD: Stationary Ultrasound generating Periosteal Standing Waves! Bone temperature >43°C. Severe periosteal pain & bone burn imminent!",
+          action: "Switch to Movable Mode Immediately (3-4 cm/s)"
+        };
+      } else if (layerTemperatures.fat >= 43.0 && currentModalityKey === "swd_capacitive") {
+        hazard = {
+          msg: "CRITICAL HAZARD: Capacitive SWD causing Subcutaneous Adipose Overheating (>43°C)! High risk of fat necrosis.",
+          action: "Reduce Power Output or Switch to Inductive SWD"
+        };
+      } else if (layerTemperatures.skin >= 44.0) {
+        hazard = {
+          msg: "THERMAL WARNING: Epidermal surface temperature >44°C! Cutaneous pain threshold exceeded; burn blister danger.",
+          action: "Halt treatment or reduce intensity & ensure proper coupling/towel"
+        };
+      } else if (towelCondition === "sweat" && currentModalityKey.startsWith("swd_")) {
+        hazard = {
+          msg: "PERSPIRATION SCALD RISK: Moisture in SWD field concentrates electric lines, creating focal scalding water hot spots.",
+          action: "Apply Dry Toweling to Absorb Perspiration"
+        };
+      }
+
+      if (hazard) {
+        hazardBanner.classList.remove("hidden");
+        hazardMessage.textContent = hazard.msg;
+        hazardAction.textContent = hazard.action;
+      } else {
+        hazardBanner.classList.add("hidden");
+      }
+    }
+
+    /* Main Canvas Drawing Simulation */
+    function drawSimulation(targetCtx, w, h, modalityKey, phaseOffset = 0) {
+      const mod = MODALITY_DATA[modalityKey];
+      const bounds = getLayerBoundaries(w);
+      const isUS = modalityKey === "us_modal";
+
+      targetCtx.clearRect(0, 0, w, h);
+
+      // 1. Anatomical Layer Backgrounds
+      // Skin (0 - bounds.skin)
+      targetCtx.fillStyle = layerTemperatures.skin >= 43.5 ? "#7f1d1d" : "#3b2923";
+      targetCtx.fillRect(0, 0, bounds.skin, h);
+
+      // Adipose / Subcutaneous Fat (bounds.skin - bounds.fat)
+      const fatGrad = targetCtx.createLinearGradient(bounds.skin, 0, bounds.fat, 0);
+      if (layerTemperatures.fat >= 42.5) {
+        fatGrad.addColorStop(0, "#7f1d1d66");
+        fatGrad.addColorStop(1, "#b4530966");
+      } else {
+        fatGrad.addColorStop(0, "#ca8a0422");
+        fatGrad.addColorStop(1, "#eab30833");
+      }
+      targetCtx.fillStyle = fatGrad;
+      targetCtx.fillRect(bounds.skin, 0, bounds.fat - bounds.skin, h);
+
+      // Muscle Belly (bounds.fat - bounds.muscle)
+      const muscleGrad = targetCtx.createLinearGradient(bounds.fat, 0, bounds.muscle, 0);
+      muscleGrad.addColorStop(0, "#7f1d1d44");
+      muscleGrad.addColorStop(1, "#991b1b33");
+      targetCtx.fillStyle = muscleGrad;
+      targetCtx.fillRect(bounds.fat, 0, bounds.muscle - bounds.fat, h);
+
+      // Joint Capsule & Deep Tendon (bounds.muscle - bounds.capsule)
+      targetCtx.fillStyle = "#0e749033";
+      targetCtx.fillRect(bounds.muscle, 0, bounds.capsule - bounds.muscle, h);
+
+      // Cortical Bone & Periosteum (bounds.capsule - w)
+      const boneGrad = targetCtx.createLinearGradient(bounds.capsule, 0, w, 0);
+      if (layerTemperatures.bone >= 42.5 && isUS && !isMovableTransducer) {
+        boneGrad.addColorStop(0, "#dc262688"); // glowing red periosteal burn
+        boneGrad.addColorStop(0.1, "#94a3b855");
+        boneGrad.addColorStop(1, "#47556944");
+      } else {
+        boneGrad.addColorStop(0, "#e2e8f033");
+        boneGrad.addColorStop(0.1, "#94a3b844");
+        boneGrad.addColorStop(1, "#47556944");
+      }
+      targetCtx.fillStyle = boneGrad;
+      targetCtx.fillRect(bounds.capsule, 0, w - bounds.capsule, h);
+
+      // 2. Anatomical Textures (Muscle striations, adipose cells, bone canaliculi)
+      // Striated muscle fibers
+      targetCtx.strokeStyle = "#ef444425";
+      targetCtx.lineWidth = 1;
+      for (let y = 12; y < h; y += 16) {
+        targetCtx.beginPath();
+        targetCtx.moveTo(bounds.fat, y);
+        targetCtx.lineTo(bounds.muscle, y);
+        targetCtx.stroke();
+      }
+
+      // Adipose lobules
+      targetCtx.strokeStyle = "#eab30825";
+      for (let y = 20; y < h; y += 28) {
+        const xMid = bounds.skin + (bounds.fat - bounds.skin) * 0.5;
+        targetCtx.beginPath();
+        targetCtx.arc(xMid, y, 7, 0, Math.PI * 2);
+        targetCtx.stroke();
+      }
+
+      // 3. Thermal Absorption Overlay
+      const heatOverlay = targetCtx.createLinearGradient(0, 0, w, 0);
+      const intensityFactor = dutyCyclePercent / 100.0 * (intensityValue / (isUS ? 1.5 : 60));
+
+      if (isUS) {
+        if (!isMovableTransducer) {
+          // Stationary concentrated hot spot!
+          heatOverlay.addColorStop(0, "rgba(239, 68, 68, 0.2)");
+          heatOverlay.addColorStop(bounds.fat / w, "rgba(239, 68, 68, 0.15)");
+          heatOverlay.addColorStop(bounds.capsule / w, "rgba(239, 68, 68, 0.4)");
+          heatOverlay.addColorStop((bounds.capsule + 10) / w, "rgba(239, 68, 68, 0.65)"); // periosteal burn flash
+          heatOverlay.addColorStop(1, "rgba(56, 189, 248, 0.05)");
+        } else if (usFrequency === 1.0) {
+          heatOverlay.addColorStop(0, "rgba(56, 189, 248, 0.04)");
+          heatOverlay.addColorStop(bounds.muscle / w, `rgba(56, 189, 248, ${0.1 * intensityFactor})`);
+          heatOverlay.addColorStop(bounds.capsule / w, `rgba(239, 68, 68, ${0.18 * intensityFactor})`);
+          heatOverlay.addColorStop((bounds.capsule + 6) / w, `rgba(239, 68, 68, ${0.12 * intensityFactor})`);
+          heatOverlay.addColorStop(1, "rgba(56, 189, 248, 0.02)");
+        } else {
+          // 3 MHz superficial
+          heatOverlay.addColorStop(0, `rgba(6, 182, 212, ${0.12 * intensityFactor})`);
+          heatOverlay.addColorStop((bounds.fat + 25) / w, `rgba(239, 68, 68, ${0.25 * intensityFactor})`);
+          heatOverlay.addColorStop(bounds.muscle / w, "rgba(6, 182, 212, 0.03)");
+          heatOverlay.addColorStop(1, "rgba(6, 182, 212, 0)");
+        }
+      } else if (modalityKey === "swd_inductive") {
+        heatOverlay.addColorStop(0, "rgba(239, 68, 68, 0.04)");
+        heatOverlay.addColorStop(bounds.fat / w, "rgba(239, 68, 68, 0.08)");
+        heatOverlay.addColorStop((bounds.fat + (bounds.muscle - bounds.fat) * 0.5) / w, `rgba(239, 68, 68, ${0.18 * intensityFactor})`);
+        heatOverlay.addColorStop(bounds.capsule / w, `rgba(239, 68, 68, ${0.09 * intensityFactor})`);
+        heatOverlay.addColorStop(1, "rgba(239, 68, 68, 0.01)");
+      } else if (modalityKey === "swd_capacitive") {
+        const fatMid = (bounds.skin + bounds.fat) * 0.5 / w;
+        heatOverlay.addColorStop(0, "rgba(245, 158, 11, 0.1)");
+        heatOverlay.addColorStop(fatMid, `rgba(245, 158, 11, ${0.32 * intensityFactor})`);
+        heatOverlay.addColorStop(bounds.fat / w, `rgba(245, 158, 11, ${0.25 * intensityFactor})`);
+        heatOverlay.addColorStop(bounds.muscle / w, `rgba(239, 68, 68, ${0.06 * intensityFactor})`);
+        heatOverlay.addColorStop(1, "rgba(239, 68, 68, 0.01)");
+      } else if (modalityKey === "mwd") {
+        heatOverlay.addColorStop(0, "rgba(168, 85, 247, 0.05)");
+        heatOverlay.addColorStop(bounds.fat / w, `rgba(239, 68, 68, ${0.22 * intensityFactor})`);
+        heatOverlay.addColorStop((bounds.fat + 35) / w, `rgba(168, 85, 247, ${0.14 * intensityFactor})`);
+        heatOverlay.addColorStop(bounds.muscle / w, "rgba(168, 85, 247, 0.02)");
+        heatOverlay.addColorStop(1, "rgba(168, 85, 247, 0)");
+      }
+
+      targetCtx.fillStyle = heatOverlay;
+      targetCtx.fillRect(0, 0, w, h);
+
+      // 4. Modality Wavefronts & Transducer Head
+      const currentPhase = wavePhase + phaseOffset;
+
+      if (isUS) {
+        // Transducer Head Positioning (Movable vs Stationary)
+        const transY = h * transducerPosFraction;
+        const transHeight = 60;
+        const transWidth = 14;
+
+        // Draw Acoustic Coupling Gel layer between transducer and skin
+        targetCtx.fillStyle = couplingQuality === "optimal" ? "rgba(56, 189, 248, 0.65)" : "rgba(245, 158, 11, 0.35)";
+        targetCtx.fillRect(bounds.skin - 4, transY - transHeight * 0.55, 4, transHeight * 1.1);
+
+        // Draw Transducer Applicator Body
+        targetCtx.fillStyle = isMovableTransducer ? "#0284c7" : "#e11d48";
+        targetCtx.strokeStyle = "#38bdf8";
+        targetCtx.lineWidth = 1.5;
+        targetCtx.beginPath();
+        targetCtx.roundRect(0, transY - transHeight * 0.5, bounds.skin, transHeight, [0, 4, 4, 0]);
+        targetCtx.fill();
+        targetCtx.stroke();
+
+        // Transducer ERA face plate
+        targetCtx.fillStyle = "#f8fafc";
+        targetCtx.fillRect(bounds.skin - 2, transY - transHeight * 0.4, 2, transHeight * 0.8);
+
+        // Acoustic Beam Emission
+        const beamColor = usFrequency === 1.0 ? "rgba(56, 189, 248," : "rgba(6, 182, 212,";
+        const wavelength = usFrequency === 1.0 ? 24 : 10;
+        const penetrationDepth = usFrequency === 1.0 ? bounds.capsule + 12 : bounds.fat + (bounds.muscle - bounds.fat) * 0.5;
+
+        // Radiating acoustic wave bars
+        const beamSpan = isMovableTransducer ? 40 : 25;
+        for (let x = bounds.skin; x < penetrationDepth; x += 6) {
+          const waveVal = Math.sin((x / wavelength) * (Math.PI * 2) - currentPhase * 0.25);
+          const decay = Math.max(0, 1 - (x / penetrationDepth));
+          const alpha = (waveVal * 0.5 + 0.5) * decay * 0.65 * (dutyCyclePercent / 100);
+
+          targetCtx.fillStyle = `${beamColor} ${alpha})`;
+          const yTop = Math.max(0, transY - beamSpan - (x - bounds.skin) * 0.15);
+          const yHeight = Math.min(h, (beamSpan * 2) + (x - bounds.skin) * 0.3);
+          targetCtx.fillRect(x, yTop, 3.5, yHeight);
+        }
+
+        // Standing wave periosteal reflection
+        if (usFrequency === 1.0) {
+          const reflectAlpha = !isMovableTransducer ? 0.95 : 0.4;
+          targetCtx.lineWidth = !isMovableTransducer ? 3.5 : 2.0;
+          targetCtx.strokeStyle = !isMovableTransducer ? "rgba(239, 68, 68, 0.9)" : "rgba(239, 68, 68, 0.4)";
+
+          const boneReflectOffset = (currentPhase * 2.2) % 35;
+          targetCtx.beginPath();
+          targetCtx.moveTo(bounds.capsule - boneReflectOffset, transY - 35);
+          targetCtx.lineTo(bounds.capsule - boneReflectOffset, transY + 35);
+          targetCtx.stroke();
+
+          if (!isMovableTransducer) {
+            // Intense focal periosteal burn glow
+            targetCtx.fillStyle = "rgba(239, 68, 68, 0.75)";
+            targetCtx.beginPath();
+            targetCtx.arc(bounds.capsule, transY, 14, 0, Math.PI * 2);
+            targetCtx.fill();
+
+            targetCtx.fillStyle = "#fecaca";
+            targetCtx.font = "bold 10px JetBrains Mono";
+            targetCtx.fillText("STANDING WAVE BURN (>44°C)", bounds.capsule - 170, transY - 12);
+          }
+        }
+
+      } else if (modalityKey === "swd_inductive") {
+        // Draw Magnetic flux loops
+        targetCtx.lineWidth = 2;
+        targetCtx.strokeStyle = "rgba(16, 185, 129, 0.45)";
+        for (let i = 0; i < 4; i++) {
+          const rx = (bounds.capsule * 0.45) + Math.sin(currentPhase * 0.05 + i) * 12;
+          const ry = (h * 0.35) + Math.cos(currentPhase * 0.05 + i) * 8;
+          targetCtx.beginPath();
+          targetCtx.ellipse(bounds.fat + (bounds.muscle - bounds.fat) * 0.5, h / 2, Math.max(10, rx - i * 25), Math.max(10, ry - i * 20), 0, 0, Math.PI * 2);
+          targetCtx.stroke();
+        }
+
+        // Swirling eddy current vortices in muscle
+        const numParticles = 20;
+        for (let p = 0; p < numParticles; p++) {
+          const angle = currentPhase * 0.04 + (p * (Math.PI * 2 / numParticles));
+          const rx = 40 + (p % 4) * 16;
+          const ry = 30 + (p % 3) * 20;
+          const cx = bounds.fat + (bounds.muscle - bounds.fat) * 0.5;
+          const cy = h / 2 + Math.sin(p) * 35;
+          const px = cx + Math.cos(angle) * rx;
+          const py = cy + Math.sin(angle) * ry;
+
+          targetCtx.fillStyle = "#34d399";
+          targetCtx.beginPath();
+          targetCtx.arc(px, py, 2.5, 0, Math.PI * 2);
+          targetCtx.fill();
+        }
+
+      } else if (modalityKey === "swd_capacitive") {
+        // High density electric field trapped in adipose
+        targetCtx.lineWidth = 2;
+        const lineCount = 12;
+        for (let l = 0; l < lineCount; l++) {
+          const y = (h / lineCount) * l + 15;
+          const alpha = 0.3 + 0.3 * Math.sin(currentPhase * 0.1 + l);
+          targetCtx.strokeStyle = `rgba(245, 158, 11, ${alpha})`;
+          targetCtx.beginPath();
+          targetCtx.moveTo(0, y);
+          targetCtx.lineTo(bounds.fat, y + Math.sin(y + currentPhase * 0.08) * 6);
+          targetCtx.lineTo(bounds.muscle * 0.75, y);
+          targetCtx.stroke();
+
+          // High resistance heating dots in fat
+          targetCtx.fillStyle = "#fbbf24";
+          targetCtx.beginPath();
+          targetCtx.arc(bounds.skin + (bounds.fat - bounds.skin) * 0.5, y, 3.5, 0, Math.PI * 2);
+          targetCtx.fill();
+        }
+
+      } else if (modalityKey === "mwd") {
+        // High frequency EM wavefront with interface bounce
+        const waveCount = 14;
+        for (let wIdx = 0; wIdx < waveCount; wIdx++) {
+          const waveX = ((wIdx * 25 + currentPhase * 3) % (bounds.muscle * 0.85));
+          const amplitudeDecay = Math.max(0, 1 - (waveX / (bounds.muscle * 0.85)));
+          targetCtx.lineWidth = 2.5 * amplitudeDecay;
+          targetCtx.strokeStyle = `rgba(168, 85, 247, ${0.65 * amplitudeDecay})`;
+
+          targetCtx.beginPath();
+          for (let y = 0; y <= h; y += 12) {
+            const undulation = Math.sin((y * 0.08) + (currentPhase * 0.15)) * 6;
+            if (y === 0) targetCtx.moveTo(waveX + undulation, y);
+            else targetCtx.lineTo(waveX + undulation, y);
+          }
+          targetCtx.stroke();
+        }
+
+        // Interface reflection waves
+        targetCtx.lineWidth = 2;
+        targetCtx.strokeStyle = "rgba(239, 68, 68, 0.75)";
+        for (let r = 0; r < 4; r++) {
+          const rPos = bounds.fat - ((r * 12 + currentPhase * 2) % 35);
+          targetCtx.beginPath();
+          targetCtx.arc(rPos, h / 2, 20 + r * 15, -Math.PI / 3, Math.PI / 3);
+          targetCtx.stroke();
+        }
+      }
+
+      // 5. Layer Divider Lines
+      targetCtx.lineWidth = 1.5;
+      targetCtx.setLineDash([4, 4]);
+
+      targetCtx.strokeStyle = "#94a3b866";
+      targetCtx.beginPath(); targetCtx.moveTo(bounds.skin, 0); targetCtx.lineTo(bounds.skin, h); targetCtx.stroke();
+
+      targetCtx.strokeStyle = "#f59e0b88";
+      targetCtx.beginPath(); targetCtx.moveTo(bounds.fat, 0); targetCtx.lineTo(bounds.fat, h); targetCtx.stroke();
+
+      targetCtx.strokeStyle = "#ef444488";
+      targetCtx.beginPath(); targetCtx.moveTo(bounds.muscle, 0); targetCtx.lineTo(bounds.muscle, h); targetCtx.stroke();
+
+      targetCtx.strokeStyle = "#06b6d488";
+      targetCtx.beginPath(); targetCtx.moveTo(bounds.capsule, 0); targetCtx.lineTo(bounds.capsule, h); targetCtx.stroke();
+
+      targetCtx.setLineDash([]);
+
+      // 6. Layer Text Badges at Top of Canvas
+      targetCtx.font = "bold 11px Plus Jakarta Sans, sans-serif";
+      targetCtx.fillStyle = "#cbd5e1";
+      targetCtx.fillText("Skin", 4, 18);
+      targetCtx.fillStyle = "#fbbf24";
+      targetCtx.fillText(`Fat (${fatThicknessMm}mm)`, bounds.skin + 6, 18);
+      targetCtx.fillStyle = "#f87171";
+      targetCtx.fillText("Muscle Belly", bounds.fat + 8, 18);
+      targetCtx.fillStyle = "#67e8f9";
+      targetCtx.fillText("Capsule / Tendon", bounds.muscle + 8, 18);
+      targetCtx.fillStyle = "#cbd5e1";
+      targetCtx.fillText("Cortical Bone", bounds.capsule + 8, 18);
+    }
+
+    /* SVG Temperature Profile Curve Generator */
+    function updateThermalProfileSVG() {
+      const svgWidth = 600;
+      const svgHeight = 100;
+      const bounds = getLayerBoundaries(svgWidth);
+
+      // Adjust SVG background bands
+      const fatBand = document.getElementById("svgFatBand");
+      const muscleBand = document.getElementById("svgMuscleBand");
+      const capsuleBand = document.getElementById("svgCapsuleBand");
+      const boneBand = document.getElementById("svgBoneBand");
+
+      fatBand.setAttribute("x", bounds.skin);
+      fatBand.setAttribute("width", bounds.fat - bounds.skin);
+      muscleBand.setAttribute("x", bounds.fat);
+      muscleBand.setAttribute("width", bounds.muscle - bounds.fat);
+      capsuleBand.setAttribute("x", bounds.muscle);
+      capsuleBand.setAttribute("width", bounds.capsule - bounds.muscle);
+      boneBand.setAttribute("x", bounds.capsule);
+      boneBand.setAttribute("width", svgWidth - bounds.capsule);
+
+      // Map temperature curve from 37.0°C (y: 90) to 48.0°C (y: 10)
+      // Scale: 1 °C = 7.2 SVG px
+      const getSvgY = (temp) => {
+        const delta = temp - 37.0;
+        return Math.max(10, Math.min(90, 90 - (delta * 7.2)));
+      };
+
+      const points = [];
+      let minSvgY = 90;
+      let peakX = bounds.muscle * 0.5;
+
+      for (let x = 0; x <= svgWidth; x += 15) {
+        let tempAtX = 37.0;
+
+        if (x <= bounds.skin) {
+          tempAtX = layerTemperatures.skin;
+        } else if (x <= bounds.fat) {
+          const frac = (x - bounds.skin) / (bounds.fat - bounds.skin);
+          tempAtX = layerTemperatures.skin + (layerTemperatures.fat - layerTemperatures.skin) * frac;
+        } else if (x <= bounds.muscle) {
+          const frac = (x - bounds.fat) / (bounds.muscle - bounds.fat);
+          tempAtX = layerTemperatures.fat + (layerTemperatures.muscle - layerTemperatures.fat) * Math.sin(frac * Math.PI * 0.5);
+        } else if (x <= bounds.capsule) {
+          const frac = (x - bounds.muscle) / (bounds.capsule - bounds.muscle);
+          tempAtX = layerTemperatures.muscle + (layerTemperatures.capsule - layerTemperatures.muscle) * frac;
+        } else {
+          // Bone periosteum and cortex
+          const distPastCapsule = x - bounds.capsule;
+          if (distPastCapsule < 12) {
+            tempAtX = layerTemperatures.bone;
+          } else {
+            tempAtX = 37.0 + (layerTemperatures.bone - 37.0) * Math.exp(-distPastCapsule / 25);
+          }
+        }
+
+        const yVal = getSvgY(tempAtX);
+        points.push(`${x},${yVal.toFixed(1)}`);
+
+        if (yVal < minSvgY) {
+          minSvgY = yVal;
+          peakX = x;
+        }
+      }
+
+      document.getElementById("tempCurvePath").setAttribute("d", "M " + points.join(" L "));
+
+      // Peak point indicator
+      const peakPoint = document.getElementById("peakPoint");
+      peakPoint.setAttribute("cx", peakX);
+      peakPoint.setAttribute("cy", minSvgY);
+
+      // Max Temp Text
+      const maxRecordedTemp = Math.max(
+        layerTemperatures.skin,
+        layerTemperatures.fat,
+        layerTemperatures.muscle,
+        layerTemperatures.capsule,
+        layerTemperatures.bone
+      );
+      const deltaMax = (maxRecordedTemp - 37.0).toFixed(1);
+      const peakThermalText = document.getElementById("peakThermalText");
+      peakThermalText.textContent = `Max Temp: ${maxRecordedTemp.toFixed(1)}°C (+${deltaMax}°C) ${maxRecordedTemp >= 44.0 ? 'HAZARDOUS BURN!' : maxRecordedTemp >= 40.0 ? '(Therapeutic Target)' : '(Mild/Sub-acute)'}`;
+      peakThermalText.className = `font-semibold font-mono-code ${maxRecordedTemp >= 44.0 ? 'text-rose-400 animate-pulse' : 'text-sky-300'}`;
+
+      // Energy Attenuation Curve Path
+      const energyPoints = [];
+      const atten = (currentModalityKey === "us_modal" && usFrequency === 3.0) ? 0.012 : 0.0055;
+      for (let x = 0; x <= svgWidth; x += 25) {
+        const eVal = 10 + 80 * (1 - Math.exp(-x * atten));
+        energyPoints.push(`${x},${eVal.toFixed(1)}`);
+      }
+      document.getElementById("energyCurvePath").setAttribute("d", "M " + energyPoints.join(" L "));
+    }
+
+    /* Mouse & Touch Interaction for Transducer Movement & Hover Inspection */
+    const canvasTooltip = document.getElementById("canvasTooltip");
+    const tipLayer = document.getElementById("tipLayer");
+    const tipDepth = document.getElementById("tipDepth");
+    const tipTemp = document.getElementById("tipTemp");
+    const tipPhysic = document.getElementById("tipPhysic");
+
+    canvas.addEventListener("mousedown", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const bounds = getLayerBoundaries(rect.width);
+      if (x < bounds.skin + 25) {
+        isDraggingTransducer = true;
+      }
+    });
+
+    window.addEventListener("mouseup", () => {
+      isDraggingTransducer = false;
+    });
+
+    canvas.addEventListener("mousemove", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const bounds = getLayerBoundaries(rect.width);
+
+      if (isDraggingTransducer) {
+        transducerPosFraction = Math.max(0.1, Math.min(0.9, y / rect.height));
+      }
+
+      // Depth inspection
+      const depthCm = ((x / rect.width) * 8.0).toFixed(1);
+      let layerName = "Epidermis & Dermis";
+      let currentT = layerTemperatures.skin;
+      let physicsNote = "Coupling interface";
+
+      if (x > bounds.skin && x <= bounds.fat) {
+        layerName = "Subcutaneous Adipose (Fat)";
+        currentT = layerTemperatures.fat;
+        physicsNote = currentModalityKey === "swd_capacitive" ? "High E-field displacement heating" : "Low acoustic attenuation (~0.15 dB/cm/MHz)";
+      } else if (x > bounds.fat && x <= bounds.muscle) {
+        layerName = "Skeletal Muscle Belly";
+        currentT = layerTemperatures.muscle;
+        physicsNote = currentModalityKey === "swd_inductive" ? "Vigorous Eddy Current heating" : "Moderate acoustic absorption in protein";
+      } else if (x > bounds.muscle && x <= bounds.capsule) {
+        layerName = "Joint Capsule / Tendon";
+        currentT = layerTemperatures.capsule;
+        physicsNote = "Dense collagen fibers; high acoustic absorption";
+      } else if (x > bounds.capsule) {
+        layerName = "Cortical Bone & Periosteum";
+        currentT = layerTemperatures.bone;
+        physicsNote = "~35% acoustic reflection; standing wave hazard if static";
+      }
+
+      canvasTooltip.style.opacity = "1";
+      canvasTooltip.style.left = `${Math.min(rect.width - 180, Math.max(10, x + 15))}px`;
+      canvasTooltip.style.top = `${Math.min(rect.height - 90, Math.max(10, y - 40))}px`;
+      tipLayer.textContent = layerName;
+      tipDepth.textContent = `Depth: ${depthCm} cm`;
+      tipTemp.textContent = `Temp: ${currentT.toFixed(1)} °C (+${(currentT - 37.0).toFixed(1)}°C)`;
+      tipPhysic.textContent = physicsNote;
+    });
+
+    canvas.addEventListener("mouseleave", () => {
+      canvasTooltip.style.opacity = "0";
+      isDraggingTransducer = false;
+    });
+
+    // Touch Support for mobile & tablet
+    canvas.addEventListener("touchstart", (e) => {
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const bounds = getLayerBoundaries(rect.width);
+      if (x < bounds.skin + 30) {
+        isDraggingTransducer = true;
+      }
+    }, { passive: true });
+
+    canvas.addEventListener("touchmove", (e) => {
+      if (isDraggingTransducer && e.touches.length > 0) {
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        const y = touch.clientY - rect.top;
+        transducerPosFraction = Math.max(0.1, Math.min(0.9, y / rect.height));
+      }
+    }, { passive: true });
+
+    window.addEventListener("touchend", () => {
+      isDraggingTransducer = false;
+    });
+
+    /* Animation Loop */
+    function animateLoop() {
+      if (isRunning) {
+        wavePhase += 1.0;
+
+        // Auto move transducer head if movable mode is enabled
+        if (isMovableTransducer && currentModalityKey === "us_modal" && !isDraggingTransducer) {
+          const moveSpeed = (transducerVelocity * 0.0016);
+          transducerPosFraction += moveSpeed * transducerDirection;
+          if (transducerPosFraction > 0.85) {
+            transducerPosFraction = 0.85;
+            transducerDirection = -1;
+          } else if (transducerPosFraction < 0.15) {
+            transducerPosFraction = 0.15;
+            transducerDirection = 1;
+          }
+        }
+      }
+
+      const rect = canvas.getBoundingClientRect();
+      drawSimulation(ctx, rect.width, rect.height, currentModalityKey, 0);
+
+      if (isSplitCompare) {
+        const cRect = compareCanvas.getBoundingClientRect();
+        drawSimulation(compareCtx, cRect.width, cRect.height, "swd_inductive", 45);
+      }
+
+      requestAnimationFrame(animateLoop);
+    }
+
+    /* Initial Startup */
+    window.onload = function () {
+      resizeCanvases();
+      syncModalityUI();
+      updateThermalCalculations();
+      animateLoop();
+    };
+  </script>
+</body>
+</html>
