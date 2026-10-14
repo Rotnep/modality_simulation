@@ -12,7 +12,7 @@ An interactive clinical biophysics simulator designed for physical therapy, reha
      - Acoustic Coupling: **Optimal Gel Layer (100%)** vs. **Suboptimal / Air Gap**.
    - **Diathermy (SWD / MWD)**:
      - Inductive Coil (Drum, 27.12 MHz) vs. Capacitive Plates (27.12 MHz) vs. Microwave (MWD, 2450 MHz).
-     - Power Output: Adjustable from **10W to 180W** (Dose I Sub-thermal to Dose IV Vigorous).
+     - Power Output: Adjustable from **10W to 300W** (Dose I Sub-thermal to Dose IV Vigorous).
      - Towel Layer & Perspiration: Dry cotton towel vs. Damp/sweat scald hazard simulation.
    - **Treatment Duration & Accumulation**:
      - Treatment duration from **1.0 to 15.0 minutes**.
@@ -34,6 +34,6 @@ An interactive clinical biophysics simulator designed for physical therapy, reha
 4. **Vercel & Modern Web Ready**:
    - Zero-dependency client-side HTML5 canvas + Tailwind CSS + Lucide Icons + Tone.js.
    - Fully responsive for mobile phones, tablets, laptops, and 4K displays.
-   - Ready for instant deployment on [Vercel](https://vercel.com).
+   - Ready for instant deployment on [Vercel](https://modalitysimulation.vercel.app/).
 
 
